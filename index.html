@@ -1,0 +1,2429 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>資産形成 — 家計簿・投資・FIRE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600;700&family=Inter+Tight:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #faf8f3;
+    --bg-elevated: #ffffff;
+    --ink: #1a1a1a;
+    --ink-soft: #5a5a5a;
+    --ink-faint: #9a9a9a;
+    --line: #e8e4db;
+    --line-strong: #d4cfc1;
+    --accent: #8b2c2c;
+    --accent-soft: #f5e8e6;
+    --positive: #2d5a3f;
+    --positive-soft: #e6efe9;
+    --gold: #b08d3c;
+    --gold-soft: #f4ecd9;
+    --indigo: #2c4a7a;
+    --indigo-soft: #e6ecf5;
+    --safe-top: env(safe-area-inset-top);
+    --safe-bottom: env(safe-area-inset-bottom);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--ink);
+    font-family: 'Inter Tight', -apple-system, sans-serif;
+    font-size: 16px; line-height: 1.5;
+    overscroll-behavior-y: contain;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    min-height: 100vh; min-height: 100dvh;
+    padding-top: var(--safe-top);
+    padding-bottom: calc(80px + var(--safe-bottom));
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(139, 44, 44, 0.02) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(176, 141, 60, 0.025) 0%, transparent 50%);
+    pointer-events: none; z-index: 0;
+  }
+  .app { position: relative; z-index: 1; max-width: 480px; margin: 0 auto; padding: 0 20px; }
+
+  header {
+    padding: 20px 0 8px;
+    display: flex; align-items: baseline; justify-content: space-between;
+  }
+  .brand {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 22px; font-weight: 600; letter-spacing: 0.02em;
+  }
+  .brand .dot {
+    display: inline-block; width: 6px; height: 6px;
+    background: var(--accent); border-radius: 50%;
+    margin-right: 8px; transform: translateY(-3px);
+  }
+  .brand-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: var(--ink-faint);
+    text-transform: uppercase; letter-spacing: 0.1em;
+  }
+
+  /* 純資産ヘッダー */
+  .net-worth {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+    color: #faf8f3;
+    border-radius: 16px;
+    padding: 18px 20px;
+    margin: 12px 0 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .net-worth::before {
+    content: '';
+    position: absolute; top: -20%; right: -10%;
+    width: 60%; height: 140%;
+    background: radial-gradient(circle, rgba(176,141,60,0.15) 0%, transparent 70%);
+  }
+  .net-worth-label {
+    font-size: 10px; color: rgba(255,255,255,0.5);
+    text-transform: uppercase; letter-spacing: 0.15em;
+    margin-bottom: 4px; position: relative;
+  }
+  .net-worth-value {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 30px; font-weight: 600;
+    letter-spacing: -0.01em; position: relative;
+  }
+  .net-worth-value .yen {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 16px; font-weight: 400;
+    color: rgba(255,255,255,0.6); margin-right: 4px;
+  }
+  .net-worth-breakdown {
+    display: flex; gap: 14px; margin-top: 10px;
+    font-size: 11px; color: rgba(255,255,255,0.7);
+    position: relative; flex-wrap: wrap;
+  }
+  .net-worth-breakdown span b {
+    color: #e8d5a0; font-weight: 500; margin-right: 4px;
+  }
+
+  .view { display: none; animation: fadeIn 0.3s ease; }
+  .view.active { display: block; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+    position: relative;
+  }
+  .card.accent-line::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; width: 4px; height: 100%;
+    border-radius: 4px 0 0 4px;
+  }
+  .card.expense-line::before { background: var(--accent); }
+  .card.income-line::before { background: var(--positive); }
+  .card.gold-line::before { background: var(--gold); }
+  .card.indigo-line::before { background: var(--indigo); }
+
+  .card-label {
+    font-size: 11px; color: var(--ink-faint);
+    text-transform: uppercase; letter-spacing: 0.12em;
+    margin-bottom: 6px; font-weight: 500;
+  }
+  .card-value {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 30px; font-weight: 600;
+    letter-spacing: -0.01em; line-height: 1.1;
+  }
+  .card-value .yen {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 18px; font-weight: 400;
+    color: var(--ink-soft); margin-right: 4px;
+  }
+  .card-meta {
+    margin-top: 8px; font-size: 12px;
+    color: var(--ink-soft);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .triple-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px; margin-bottom: 16px;
+  }
+  .stat {
+    background: var(--bg-elevated); border: 1px solid var(--line);
+    border-radius: 12px; padding: 12px 8px; text-align: center;
+  }
+  .stat-label {
+    font-size: 10px; color: var(--ink-faint);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+  .stat-value {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 17px; font-weight: 600;
+  }
+  .stat.income .stat-value { color: var(--positive); }
+  .stat.expense .stat-value { color: var(--accent); }
+  .stat.saving .stat-value { color: var(--gold); }
+
+  .section-title {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 14px; font-weight: 600;
+    margin: 22px 0 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title::before {
+    content: ''; width: 12px; height: 1px; background: var(--ink);
+  }
+  .section-title .sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: var(--ink-faint);
+    font-weight: 400; margin-left: auto;
+  }
+
+  .savings-rate-card { padding: 16px 20px; }
+  .savings-rate-header {
+    display: flex; justify-content: space-between;
+    align-items: baseline; margin-bottom: 10px;
+  }
+  .savings-rate-title { font-size: 13px; color: var(--ink-soft); font-weight: 500; }
+  .savings-rate-pct {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 22px; font-weight: 600; color: var(--gold);
+  }
+  .savings-bar {
+    height: 6px; background: var(--line);
+    border-radius: 3px; overflow: hidden;
+  }
+  .savings-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold) 0%, #d4a847 100%);
+    border-radius: 3px;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .savings-targets {
+    display: flex; justify-content: space-between; margin-top: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: var(--ink-faint);
+  }
+
+  .list-card {
+    background: var(--bg-elevated); border: 1px solid var(--line);
+    border-radius: 16px; overflow: hidden;
+  }
+  .list-row {
+    display: flex; align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+    gap: 12px;
+  }
+  .list-row:last-child { border-bottom: none; }
+  .list-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--accent-soft);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .list-icon.income { background: var(--positive-soft); }
+  .list-icon.invest { background: var(--indigo-soft); }
+  .list-icon.goal { background: var(--gold-soft); }
+  .list-info { flex: 1; min-width: 0; }
+  .list-title {
+    font-size: 14px; font-weight: 500;
+    margin-bottom: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .list-sub { font-size: 11px; color: var(--ink-faint); }
+  .list-amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px; font-weight: 600;
+    text-align: right; flex-shrink: 0;
+  }
+  .list-amount.expense { color: var(--accent); }
+  .list-amount.income { color: var(--positive); }
+  .list-pct {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: var(--ink-faint);
+    text-align: right; margin-top: 1px;
+  }
+  .list-bar-wrap {
+    height: 4px; background: var(--line);
+    border-radius: 2px; overflow: hidden; margin-top: 4px;
+  }
+  .list-bar-fill {
+    height: 100%; background: var(--accent); border-radius: 2px;
+  }
+
+  .tx-day {
+    background: #f5f1e8;
+    padding: 8px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--ink-soft);
+    text-transform: uppercase; letter-spacing: 0.1em;
+    display: flex; justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .row-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .icon-btn {
+    background: none; border: none;
+    color: var(--ink-faint); font-size: 16px;
+    padding: 6px 8px; cursor: pointer;
+  }
+
+  .empty {
+    text-align: center; padding: 40px 24px; color: var(--ink-faint);
+  }
+  .empty-icon { font-size: 32px; margin-bottom: 10px; opacity: 0.5; }
+  .empty-text { font-size: 13px; }
+
+  .month-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--bg-elevated); border: 1px solid var(--line);
+    border-radius: 12px; padding: 6px 12px; margin-bottom: 14px;
+  }
+  .month-nav button {
+    background: none; border: none;
+    font-size: 18px; color: var(--ink); cursor: pointer;
+    padding: 4px 12px; font-family: inherit;
+  }
+  .month-nav .current {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 15px; font-weight: 600;
+  }
+
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(250, 248, 243, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--line);
+    padding: 8px 0 calc(8px + var(--safe-bottom));
+    z-index: 40;
+  }
+  .bottom-nav-inner {
+    max-width: 480px; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    gap: 2px; padding: 0 8px;
+  }
+  .nav-btn {
+    background: none; border: none; padding: 8px 4px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    cursor: pointer; color: var(--ink-faint);
+    font-family: inherit; transition: color 0.2s;
+  }
+  .nav-btn .ico { font-size: 18px; line-height: 1; }
+  .nav-btn .lbl { font-size: 10px; font-weight: 500; }
+  .nav-btn.active { color: var(--ink); }
+
+  .fab {
+    position: fixed;
+    bottom: calc(80px + var(--safe-bottom));
+    right: 20px;
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: var(--ink); color: var(--bg);
+    border: none; font-size: 26px; font-weight: 300;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+    z-index: 50;
+    transition: transform 0.2s ease;
+    display: flex; align-items: center; justify-content: center; line-height: 1;
+  }
+  .fab:active { transform: scale(0.93); }
+  .fab.hidden { display: none; }
+
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(20, 20, 20, 0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 100;
+    display: none;
+    align-items: flex-end;
+  }
+  .modal-backdrop.active { display: flex; animation: fadeBg 0.2s ease; }
+  @keyframes fadeBg { from { opacity: 0; } to { opacity: 1; } }
+
+  .modal {
+    width: 100%; max-width: 480px; margin: 0 auto;
+    background: var(--bg);
+    border-radius: 24px 24px 0 0;
+    padding: 16px 20px calc(20px + var(--safe-bottom));
+    max-height: 92vh; overflow-y: auto;
+    animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+  .modal-handle {
+    width: 36px; height: 4px;
+    background: var(--line-strong);
+    border-radius: 2px;
+    margin: 0 auto 14px;
+  }
+  .modal-title {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 18px; font-weight: 600; margin-bottom: 16px;
+  }
+
+  .type-toggle {
+    display: flex; gap: 6px; margin-bottom: 16px;
+    background: var(--bg-elevated); border: 1px solid var(--line);
+    border-radius: 12px; padding: 4px;
+  }
+  .type-btn {
+    flex: 1; padding: 10px 6px;
+    border: none; background: transparent;
+    border-radius: 9px;
+    font-family: inherit; font-size: 13px; font-weight: 500;
+    color: var(--ink-soft); cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .type-btn.active.expense-bg { background: var(--accent); color: white; }
+  .type-btn.active.income-bg { background: var(--positive); color: white; }
+
+  .field { margin-bottom: 14px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .field-label {
+    display: block; font-size: 12px;
+    color: var(--ink-soft); margin-bottom: 5px;
+    font-weight: 500; letter-spacing: 0.02em;
+  }
+
+  .amount-input {
+    display: flex; align-items: baseline;
+    background: var(--bg-elevated);
+    border: 1.5px solid var(--line-strong);
+    border-radius: 12px; padding: 14px; gap: 8px;
+  }
+  .amount-input .yen-symbol {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 20px; color: var(--ink-soft);
+  }
+  .amount-input input {
+    flex: 1; border: none; outline: none; background: transparent;
+    font-family: 'Shippori Mincho', serif;
+    font-size: 24px; font-weight: 600;
+    color: var(--ink); width: 100%;
+    -moz-appearance: textfield;
+  }
+  .amount-input input::-webkit-outer-spin-button,
+  .amount-input input::-webkit-inner-spin-button {
+    -webkit-appearance: none; margin: 0;
+  }
+  .amount-input.compact { padding: 10px 14px; }
+  .amount-input.compact .yen-symbol { font-size: 17px; }
+  .amount-input.compact input { font-size: 18px; }
+
+  .text-input, .date-input, .select-input, .number-input {
+    width: 100%; padding: 12px 14px;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 12px; background: var(--bg-elevated);
+    font-family: inherit; font-size: 15px;
+    color: var(--ink); outline: none;
+  }
+  .text-input:focus, .date-input:focus, .select-input:focus, .number-input:focus {
+    border-color: var(--ink);
+  }
+  .text-input:disabled, .number-input:disabled {
+    background: var(--line); color: var(--ink-faint);
+  }
+
+  .category-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+  }
+  .cat-pick {
+    aspect-ratio: 1;
+    border: 1.5px solid var(--line); background: var(--bg-elevated);
+    border-radius: 12px; cursor: pointer;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 3px;
+    font-family: inherit; font-size: 10px;
+    color: var(--ink-soft);
+    transition: all 0.15s ease; padding: 4px;
+  }
+  .cat-pick .icon { font-size: 20px; }
+  .cat-pick.selected {
+    border-color: var(--ink); background: var(--ink); color: var(--bg);
+  }
+
+  .save-btn {
+    width: 100%; padding: 15px;
+    background: var(--ink); color: var(--bg);
+    border: none; border-radius: 12px;
+    font-family: inherit; font-size: 15px; font-weight: 600;
+    cursor: pointer; margin-top: 8px;
+    letter-spacing: 0.05em;
+  }
+  .save-btn:active { opacity: 0.85; }
+  .delete-btn {
+    width: 100%; padding: 12px;
+    background: var(--accent-soft); color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    font-family: inherit; font-size: 13px;
+    cursor: pointer; margin-top: 8px;
+  }
+
+  .nisa-card {
+    background: linear-gradient(135deg, var(--indigo-soft) 0%, #f0f4fa 100%);
+    border: 1px solid var(--indigo);
+    border-radius: 16px;
+    padding: 16px 18px; margin-bottom: 14px;
+  }
+  .nisa-card-title {
+    font-size: 13px; font-weight: 600;
+    color: var(--indigo); margin-bottom: 10px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .nisa-row {
+    display: flex; justify-content: space-between;
+    align-items: baseline; margin-bottom: 6px;
+    font-size: 12px;
+  }
+  .nisa-row .lbl { color: var(--ink-soft); }
+  .nisa-row .val {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500; color: var(--ink);
+  }
+  .nisa-bar {
+    height: 5px; background: white;
+    border-radius: 3px; overflow: hidden;
+    margin: 4px 0 10px;
+  }
+  .nisa-bar-fill {
+    height: 100%; background: var(--indigo);
+    border-radius: 3px;
+  }
+
+  .goal-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px 18px; margin-bottom: 12px;
+    position: relative;
+  }
+  .goal-card.fire-goal {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+    color: white; border: none;
+  }
+  .goal-card.fire-goal .goal-name,
+  .goal-card.fire-goal .goal-pct,
+  .goal-card.fire-goal .goal-amount-now { color: white; }
+  .goal-card.fire-goal .goal-target,
+  .goal-card.fire-goal .goal-meta { color: rgba(255,255,255,0.65); }
+  .goal-card.fire-goal .goal-bar { background: rgba(255,255,255,0.15); }
+  .goal-card.fire-goal .goal-edit-btn {
+    border-color: rgba(255,255,255,0.3);
+    color: rgba(255,255,255,0.85);
+  }
+
+  .goal-header {
+    display: flex; justify-content: space-between;
+    align-items: flex-start; margin-bottom: 10px; gap: 10px;
+  }
+  .goal-name {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 16px; font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .goal-name .icon { font-size: 18px; }
+  .goal-pct {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px; font-weight: 600; color: var(--gold);
+  }
+  .goal-amounts {
+    display: flex; align-items: baseline; gap: 6px;
+    margin-bottom: 8px; flex-wrap: wrap;
+  }
+  .goal-amount-now {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 22px; font-weight: 600;
+  }
+  .goal-target {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; color: var(--ink-soft);
+  }
+  .goal-bar {
+    height: 6px; background: var(--line);
+    border-radius: 3px; overflow: hidden; margin-bottom: 8px;
+  }
+  .goal-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold) 0%, #d4a847 100%);
+    border-radius: 3px;
+    transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+  }
+  .goal-meta {
+    font-size: 11px; color: var(--ink-soft);
+    font-family: 'JetBrains Mono', monospace;
+    display: flex; justify-content: space-between;
+    flex-wrap: wrap; gap: 6px;
+  }
+  .goal-edit-row { margin-top: 10px; display: flex; gap: 8px; }
+  .goal-edit-btn {
+    flex: 1; padding: 8px; background: transparent;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    font-family: inherit; font-size: 12px;
+    color: var(--ink-soft); cursor: pointer;
+  }
+
+  .settings-card {
+    background: var(--bg-elevated); border: 1px solid var(--line);
+    border-radius: 16px; padding: 16px 18px;
+    margin-bottom: 12px;
+  }
+  .setting-label { font-size: 12px; color: var(--ink-soft); margin-bottom: 6px; }
+  .setting-help {
+    font-size: 11px; color: var(--ink-faint);
+    margin-top: 6px; line-height: 1.5;
+  }
+  .danger-btn {
+    width: 100%; padding: 13px;
+    background: var(--accent-soft); color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    font-family: inherit; font-size: 14px; font-weight: 500;
+    cursor: pointer;
+  }
+
+  .chart-bars {
+    display: flex; align-items: flex-end;
+    gap: 6px; height: 130px; margin-top: 14px;
+  }
+  .chart-col {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; gap: 4px;
+    height: 100%; justify-content: flex-end;
+  }
+  .chart-bar {
+    width: 100%; border-radius: 2px; min-height: 0;
+    transition: height 0.5s cubic-bezier(0.4,0,0.2,1);
+  }
+  .chart-bar.expense { background: var(--accent); }
+  .chart-bar.income { background: var(--positive); }
+  .chart-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; color: var(--ink-faint);
+  }
+  .chart-legend {
+    display: flex; gap: 14px;
+    font-size: 11px; color: var(--ink-soft); margin-top: 10px;
+  }
+  .legend-dot {
+    display: inline-block; width: 8px; height: 8px;
+    border-radius: 2px; margin-right: 4px; vertical-align: middle;
+  }
+
+  .fire-calc {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+    color: white; border-radius: 16px;
+    padding: 18px 20px; margin-bottom: 14px;
+    position: relative; overflow: hidden;
+  }
+  .fire-calc::before {
+    content: ''; position: absolute;
+    top: -30%; right: -20%;
+    width: 70%; height: 160%;
+    background: radial-gradient(circle, rgba(176,141,60,0.18) 0%, transparent 70%);
+  }
+  .fire-calc-title {
+    font-size: 11px; color: rgba(255,255,255,0.55);
+    text-transform: uppercase; letter-spacing: 0.15em;
+    margin-bottom: 6px; position: relative;
+  }
+  .fire-calc-value {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 28px; font-weight: 600;
+    position: relative; margin-bottom: 4px;
+  }
+  .fire-calc-meta {
+    font-size: 12px; color: rgba(255,255,255,0.7);
+    font-family: 'JetBrains Mono', monospace;
+    position: relative; line-height: 1.6;
+  }
+  .fire-progress { margin-top: 14px; position: relative; }
+  .fire-progress-bar {
+    height: 6px; background: rgba(255,255,255,0.15);
+    border-radius: 3px; overflow: hidden;
+  }
+  .fire-progress-fill {
+    height: 100%; background: var(--gold); border-radius: 3px;
+  }
+
+  .loading-screen {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200;
+  }
+  .loading-screen.hidden {
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .loading-text {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 18px; color: var(--ink-soft);
+  }
+
+  .toast {
+    position: fixed;
+    bottom: calc(100px + var(--safe-bottom));
+    left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: var(--bg);
+    padding: 10px 20px; border-radius: 24px;
+    font-size: 13px; z-index: 150;
+    opacity: 0; transition: opacity 0.3s ease;
+    pointer-events: none;
+    max-width: calc(100% - 40px);
+  }
+  .toast.show { opacity: 1; }
+
+  /* 月次比較カード */
+  .compare-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+  }
+  .compare-header {
+    display: flex; justify-content: space-between;
+    align-items: center; margin-bottom: 12px;
+  }
+  .compare-title {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 13px; font-weight: 600;
+  }
+  .compare-vs {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .compare-item {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: var(--bg);
+  }
+  .compare-item-label {
+    font-size: 10px;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+  .compare-item-value {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .compare-item-delta {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .compare-item-delta .arrow {
+    font-size: 10px;
+    line-height: 1;
+  }
+  .compare-item-delta.good { color: var(--positive); }
+  .compare-item-delta.bad { color: var(--accent); }
+  .compare-item-delta.neutral { color: var(--ink-faint); }
+  .compare-empty {
+    text-align: center;
+    padding: 24px 0;
+    color: var(--ink-faint);
+    font-size: 12px;
+  }
+
+  /* カテゴリ行の前月比 */
+  .list-row .cat-delta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    margin-top: 2px;
+    text-align: right;
+  }
+  .cat-delta.good { color: var(--positive); }
+  .cat-delta.bad { color: var(--accent); }
+  .cat-delta.neutral { color: var(--ink-faint); }
+  .cat-delta.new { color: var(--indigo); }
+
+  /* 純資産推移グラフ */
+  .net-worth-chart {
+    background: var(--bg-elevated);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+  }
+  .nw-chart-header {
+    display: flex; justify-content: space-between;
+    align-items: baseline; margin-bottom: 14px;
+  }
+  .nw-chart-title {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 14px; font-weight: 600;
+  }
+  .nw-chart-change {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; font-weight: 500;
+  }
+  .nw-chart-change.up { color: var(--positive); }
+  .nw-chart-change.down { color: var(--accent); }
+  .nw-chart-svg {
+    width: 100%;
+    height: 140px;
+    display: block;
+    overflow: visible;
+  }
+  .nw-chart-svg .grid-line {
+    stroke: var(--line);
+    stroke-width: 1;
+    stroke-dasharray: 2 3;
+  }
+  .nw-chart-svg .area {
+    fill: url(#nwGradient);
+  }
+  .nw-chart-svg .line {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .nw-chart-svg .point {
+    fill: var(--bg-elevated);
+    stroke: var(--ink);
+    stroke-width: 2;
+  }
+  .nw-chart-svg .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    fill: var(--ink-faint);
+  }
+  .nw-chart-empty {
+    text-align: center;
+    padding: 32px 0;
+    color: var(--ink-faint);
+    font-size: 13px;
+  }
+
+  /* 複利シミュレーター */
+  .sim-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+  }
+  .sim-presets {
+    display: flex; gap: 6px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .sim-preset {
+    padding: 6px 12px;
+    border: 1px solid var(--line-strong);
+    background: var(--bg);
+    border-radius: 16px;
+    font-family: inherit;
+    font-size: 11px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .sim-preset.active {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+  }
+  .sim-result {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+    color: white;
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-top: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .sim-result::before {
+    content: ''; position: absolute;
+    top: -30%; right: -20%;
+    width: 70%; height: 160%;
+    background: radial-gradient(circle, rgba(176,141,60,0.15) 0%, transparent 70%);
+  }
+  .sim-result-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 4px;
+    position: relative;
+  }
+  .sim-result-value {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 28px;
+    font-weight: 600;
+    position: relative;
+  }
+  .sim-result-value .yen {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 16px;
+    color: rgba(255,255,255,0.6);
+    margin-right: 4px;
+  }
+  .sim-breakdown {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    position: relative;
+  }
+  .sim-bd-item .lbl {
+    font-size: 10px;
+    color: rgba(255,255,255,0.55);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 2px;
+  }
+  .sim-bd-item .val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .sim-bd-item .val.gain { color: #e8d5a0; }
+
+  .sim-chart {
+    margin-top: 14px;
+    height: 120px;
+  }
+  .sim-chart svg { width: 100%; height: 100%; overflow: visible; }
+  .sim-chart .principal { fill: rgba(176,141,60,0.4); }
+  .sim-chart .total-line {
+    fill: none;
+    stroke: var(--gold);
+    stroke-width: 2;
+  }
+  .sim-chart .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    fill: var(--ink-faint);
+  }
+
+  .sim-fire-link {
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: var(--gold-soft);
+    border: 1px solid var(--gold);
+    border-radius: 10px;
+    font-size: 12px;
+    color: #6b5520;
+    line-height: 1.5;
+  }
+  .sim-fire-link b {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 14px;
+    color: #4a3814;
+  }
+
+  .section-with-action {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 22px 0 10px;
+  }
+  .add-link {
+    background: none; color: var(--ink-soft);
+    font-size: 12px; cursor: pointer; font-family: inherit;
+    padding: 4px 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+  }
+  .add-link:active { background: var(--ink); color: white; border-color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div class="loading-screen" id="loadingScreen">
+  <div class="loading-text">読み込み中…</div>
+</div>
+
+<div class="app">
+  <header>
+    <div class="brand"><span class="dot"></span>資産形成</div>
+    <div class="brand-sub">Wealth Builder</div>
+  </header>
+
+  <div class="net-worth">
+    <div class="net-worth-label">純資産 — Net Worth</div>
+    <div class="net-worth-value"><span class="yen">¥</span><span id="netWorth">0</span></div>
+    <div class="net-worth-breakdown">
+      <span><b>現金:</b><span id="cashTotal">¥0</span></span>
+      <span><b>投資:</b><span id="investTotal">¥0</span></span>
+    </div>
+  </div>
+
+  <!-- 概要 -->
+  <div class="view active" id="view-dashboard">
+    <div class="month-nav">
+      <button id="prevMonth">‹</button>
+      <span class="current" id="currentMonth">—</span>
+      <button id="nextMonth">›</button>
+    </div>
+
+    <div class="card accent-line gold-line">
+      <div class="card-label">今月の収支</div>
+      <div class="card-value"><span class="yen">¥</span><span id="balance">0</span></div>
+      <div class="card-meta" id="balanceMeta">—</div>
+    </div>
+
+    <div class="compare-card" id="compareCard">
+      <div class="compare-header">
+        <span class="compare-title">前月比較</span>
+        <span class="compare-vs" id="compareVs">vs —</span>
+      </div>
+      <div id="compareContent"></div>
+    </div>
+
+    <div class="triple-grid">
+      <div class="stat income"><div class="stat-label">収入</div><div class="stat-value" id="totalIncome">¥0</div></div>
+      <div class="stat expense"><div class="stat-label">支出</div><div class="stat-value" id="totalExpense">¥0</div></div>
+      <div class="stat saving"><div class="stat-label">貯蓄率</div><div class="stat-value" id="savingsRateMini">0%</div></div>
+    </div>
+
+    <div class="card savings-rate-card">
+      <div class="savings-rate-header">
+        <span class="savings-rate-title">貯蓄率の進捗</span>
+        <span class="savings-rate-pct" id="savingsRate">0%</span>
+      </div>
+      <div class="savings-bar"><div class="savings-bar-fill" id="savingsBarFill" style="width:0%"></div></div>
+      <div class="savings-targets">
+        <span>0%</span>
+        <span id="savingsGoalLabel">目標 30%</span>
+        <span>50%</span>
+      </div>
+    </div>
+
+    <div class="section-title">カテゴリ別 支出</div>
+    <div class="list-card" id="categoryList"></div>
+
+    <div class="section-title">直近の取引<span class="sub" id="recentTxSub"></span></div>
+    <div class="list-card" id="recentTxList"></div>
+
+    <div class="section-title">純資産の推移<span class="sub" id="nwChartRange"></span></div>
+    <div class="net-worth-chart">
+      <div class="nw-chart-header">
+        <span class="nw-chart-title" id="nwChartTitle">直近12ヶ月</span>
+        <span class="nw-chart-change" id="nwChartChange">—</span>
+      </div>
+      <div id="nwChartContainer"></div>
+    </div>
+  </div>
+
+  <!-- 履歴 -->
+  <div class="view" id="view-history">
+    <div class="month-nav">
+      <button id="prevMonthH">‹</button>
+      <span class="current" id="currentMonthH">—</span>
+      <button id="nextMonthH">›</button>
+    </div>
+    <div class="list-card" id="txList"></div>
+
+    <div class="section-title">直近6ヶ月の推移</div>
+    <div class="card">
+      <div class="chart-bars" id="chartBars"></div>
+      <div class="chart-legend">
+        <span><span class="legend-dot" style="background:var(--positive)"></span>収入</span>
+        <span><span class="legend-dot" style="background:var(--accent)"></span>支出</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 投資・NISA -->
+  <div class="view" id="view-invest">
+    <div class="card accent-line indigo-line">
+      <div class="card-label">投資資産 評価額</div>
+      <div class="card-value"><span class="yen">¥</span><span id="investValue">0</span></div>
+      <div class="card-meta" id="investMeta">—</div>
+    </div>
+
+    <div class="triple-grid">
+      <div class="stat"><div class="stat-label">取得額</div><div class="stat-value" id="investCost">¥0</div></div>
+      <div class="stat"><div class="stat-label">評価損益</div><div class="stat-value" id="investPnL">¥0</div></div>
+      <div class="stat"><div class="stat-label">損益率</div><div class="stat-value" id="investPnLPct">0%</div></div>
+    </div>
+
+    <div class="nisa-card">
+      <div class="nisa-card-title">🌸 NISA枠の使用状況</div>
+      <div class="nisa-row"><span class="lbl">つみたて投資枠(年間120万)</span><span class="val" id="nisaTsumitateText">¥0 / ¥1,200,000</span></div>
+      <div class="nisa-bar"><div class="nisa-bar-fill" id="nisaTsumitateBar" style="width:0%"></div></div>
+      <div class="nisa-row"><span class="lbl">成長投資枠(年間240万)</span><span class="val" id="nisaGrowthText">¥0 / ¥2,400,000</span></div>
+      <div class="nisa-bar"><div class="nisa-bar-fill" id="nisaGrowthBar" style="width:0%"></div></div>
+      <div class="nisa-row"><span class="lbl">生涯投資枠(1800万)</span><span class="val" id="nisaTotalText">¥0 / ¥18,000,000</span></div>
+      <div class="nisa-bar"><div class="nisa-bar-fill" id="nisaTotalBar" style="width:0%"></div></div>
+    </div>
+
+    <div class="section-with-action">
+      <div class="section-title" style="margin:0">保有銘柄</div>
+      <button class="add-link" id="addHoldingBtn">+ 追加</button>
+    </div>
+    <div class="list-card" id="holdingsList"></div>
+  </div>
+
+  <!-- 目標 -->
+  <div class="view" id="view-goals">
+    <div class="section-with-action">
+      <div class="section-title" style="margin:0">貯蓄目標</div>
+      <button class="add-link" id="addGoalBtn">+ 新規目標</button>
+    </div>
+    <div id="goalsList"></div>
+
+    <div class="section-title">FIRE試算</div>
+    <div class="fire-calc">
+      <div class="fire-calc-title">FIRE達成に必要な資産</div>
+      <div class="fire-calc-value"><span style="font-family:'Inter Tight';font-size:18px;color:rgba(255,255,255,0.6)">¥</span><span id="fireTarget">0</span></div>
+      <div class="fire-calc-meta" id="fireMeta">年間支出を入力すると試算されます</div>
+      <div class="fire-progress">
+        <div class="fire-progress-bar"><div class="fire-progress-fill" id="fireProgressFill" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label" style="margin-bottom:10px">FIRE設定</div>
+      <div class="field">
+        <label class="field-label">取り崩し率(SWR)</label>
+        <select class="select-input" id="swrInput">
+          <option value="3">3% — 慎重派(33倍ルール)</option>
+          <option value="3.5">3.5% — バランス</option>
+          <option value="4" selected>4% — 標準(25倍ルール)</option>
+          <option value="5">5% — 積極派(20倍ルール)</option>
+        </select>
+        <div class="setting-help">米国研究の「4%ルール」が標準。慎重なら3〜3.5%。</div>
+      </div>
+      <div class="field">
+        <label class="field-label">想定年間支出(任意・空欄なら過去12ヶ月実績)</label>
+        <div class="amount-input compact">
+          <span class="yen-symbol">¥</span>
+          <input type="number" id="fireAnnualExpense" inputmode="numeric" placeholder="例: 3600000">
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">複利シミュレーター</div>
+    <div class="sim-card">
+      <div class="sim-presets">
+        <button class="sim-preset" data-rate="3">慎重 3%</button>
+        <button class="sim-preset active" data-rate="5">つみたてNISA想定 5%</button>
+        <button class="sim-preset" data-rate="7">米国株式平均 7%</button>
+        <button class="sim-preset" data-rate="10">積極派 10%</button>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label">初期投資額</label>
+          <div class="amount-input compact">
+            <span class="yen-symbol">¥</span>
+            <input type="number" id="simInitial" inputmode="numeric" placeholder="0">
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label">月の積立額</label>
+          <div class="amount-input compact">
+            <span class="yen-symbol">¥</span>
+            <input type="number" id="simMonthly" inputmode="numeric" placeholder="50000">
+          </div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label">想定利回り(年%)</label>
+          <input type="number" class="number-input" id="simRate" inputmode="decimal" step="0.1" value="5">
+        </div>
+        <div class="field">
+          <label class="field-label">期間(年)</label>
+          <input type="number" class="number-input" id="simYears" inputmode="numeric" value="20">
+        </div>
+      </div>
+
+      <div class="sim-result">
+        <div class="sim-result-label">最終評価額</div>
+        <div class="sim-result-value"><span class="yen">¥</span><span id="simFinal">0</span></div>
+        <div class="sim-breakdown">
+          <div class="sim-bd-item">
+            <div class="lbl">元本合計</div>
+            <div class="val" id="simPrincipal">¥0</div>
+          </div>
+          <div class="sim-bd-item">
+            <div class="lbl">運用益</div>
+            <div class="val gain" id="simGain">¥0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sim-chart" id="simChart"></div>
+
+      <div class="sim-fire-link" id="simFireLink" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- 設定 -->
+  <div class="view" id="view-settings">
+    <div class="settings-card">
+      <div class="setting-label">月収目標(任意)</div>
+      <div class="amount-input compact">
+        <span class="yen-symbol">¥</span>
+        <input type="number" id="incomeGoal" inputmode="numeric" placeholder="300000">
+      </div>
+    </div>
+    <div class="settings-card">
+      <div class="setting-label">月次貯蓄率の目標</div>
+      <select class="select-input" id="savingsGoal">
+        <option value="10">10% — 入門</option>
+        <option value="20">20% — 標準</option>
+        <option value="30" selected>30% — 推奨</option>
+        <option value="40">40% — 加速</option>
+        <option value="50">50% — FIRE志向</option>
+      </select>
+    </div>
+    <div class="settings-card">
+      <div class="setting-label">現金・預金残高(初期値)</div>
+      <div class="amount-input compact">
+        <span class="yen-symbol">¥</span>
+        <input type="number" id="cashBaseline" inputmode="numeric" placeholder="0">
+      </div>
+      <div class="setting-help">純資産計算用。家計簿の収支と合算されます。</div>
+    </div>
+    <div class="settings-card">
+      <div class="setting-label">データについて</div>
+      <p style="font-size:12px;color:var(--ink-soft);margin:4px 0 12px;line-height:1.6">
+        全データは端末内に保存されます。サーバーへの送信は一切ありません。
+      </p>
+      <button class="danger-btn" id="resetData">全データを削除</button>
+    </div>
+  </div>
+</div>
+
+<button class="fab" id="fab">+</button>
+
+<nav class="bottom-nav">
+  <div class="bottom-nav-inner">
+    <button class="nav-btn active" data-view="dashboard"><span class="ico">◇</span><span class="lbl">概要</span></button>
+    <button class="nav-btn" data-view="history"><span class="ico">≡</span><span class="lbl">履歴</span></button>
+    <button class="nav-btn" data-view="invest"><span class="ico">↗</span><span class="lbl">投資</span></button>
+    <button class="nav-btn" data-view="goals"><span class="ico">◎</span><span class="lbl">目標</span></button>
+    <button class="nav-btn" data-view="settings"><span class="ico">⚙</span><span class="lbl">設定</span></button>
+  </div>
+</nav>
+
+<!-- 取引モーダル -->
+<div class="modal-backdrop" id="txModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">取引を追加</div>
+    <div class="type-toggle">
+      <button class="type-btn active expense-bg" data-type="expense">支出</button>
+      <button class="type-btn income-bg" data-type="income">収入</button>
+    </div>
+    <div class="field">
+      <label class="field-label">金額</label>
+      <div class="amount-input"><span class="yen-symbol">¥</span><input type="number" id="amountInput" inputmode="numeric" placeholder="0"></div>
+    </div>
+    <div class="field">
+      <label class="field-label">カテゴリ</label>
+      <div class="category-grid" id="catGrid"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label class="field-label">日付</label><input type="date" class="date-input" id="dateInput"></div>
+      <div class="field"><label class="field-label">メモ</label><input type="text" class="text-input" id="memoInput" placeholder="任意" maxlength="40"></div>
+    </div>
+    <button class="save-btn" id="saveBtn">保存する</button>
+  </div>
+</div>
+
+<!-- 銘柄モーダル -->
+<div class="modal-backdrop" id="holdingModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="holdingModalTitle">銘柄を追加</div>
+    <div class="field">
+      <label class="field-label">銘柄名</label>
+      <input type="text" class="text-input" id="holdingName" placeholder="例: eMAXIS Slim 米国株式" maxlength="40">
+    </div>
+    <div class="field">
+      <label class="field-label">口座種別</label>
+      <select class="select-input" id="holdingAccount">
+        <option value="nisa_tsumitate">NISA つみたて投資枠</option>
+        <option value="nisa_growth">NISA 成長投資枠</option>
+        <option value="ideco">iDeCo</option>
+        <option value="taxable">特定口座(課税)</option>
+        <option value="other">その他</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <div class="field"><label class="field-label">保有数量(口/株)</label><input type="number" class="number-input" id="holdingQty" inputmode="decimal" step="any" placeholder="0"></div>
+      <div class="field"><label class="field-label">取得単価(円)</label><input type="number" class="number-input" id="holdingCost" inputmode="decimal" step="any" placeholder="0"></div>
+    </div>
+    <div class="field">
+      <label class="field-label">現在の単価(評価額計算用)</label>
+      <input type="number" class="number-input" id="holdingPrice" inputmode="decimal" step="any" placeholder="0">
+      <div class="setting-help">投信の場合は基準価額を記入。手動更新で評価損益を反映します。</div>
+    </div>
+    <button class="save-btn" id="saveHoldingBtn">保存する</button>
+    <button class="delete-btn" id="deleteHoldingBtn" style="display:none">この銘柄を削除</button>
+  </div>
+</div>
+
+<!-- 目標モーダル -->
+<div class="modal-backdrop" id="goalModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="goalModalTitle">目標を追加</div>
+    <div class="field">
+      <label class="field-label">目標名</label>
+      <input type="text" class="text-input" id="goalName" placeholder="例: 旅行資金、住宅頭金" maxlength="30">
+    </div>
+    <div class="field">
+      <label class="field-label">アイコン</label>
+      <div class="category-grid" id="goalIconGrid"></div>
+    </div>
+    <div class="field">
+      <label class="field-label">目標金額</label>
+      <div class="amount-input"><span class="yen-symbol">¥</span><input type="number" id="goalTarget" inputmode="numeric" placeholder="0"></div>
+    </div>
+    <div class="field">
+      <label class="field-label">現在の積立額</label>
+      <div class="amount-input compact"><span class="yen-symbol">¥</span><input type="number" id="goalCurrent" inputmode="numeric" placeholder="0"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label class="field-label">目標期日(任意)</label><input type="date" class="date-input" id="goalDeadline"></div>
+      <div class="field"><label class="field-label">月の積立額(任意)</label><div class="amount-input compact"><span class="yen-symbol">¥</span><input type="number" id="goalMonthly" inputmode="numeric" placeholder="0"></div></div>
+    </div>
+    <button class="save-btn" id="saveGoalBtn">保存する</button>
+    <button class="delete-btn" id="deleteGoalBtn" style="display:none">この目標を削除</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const CATEGORIES = {
+  expense: [
+    { id: 'food',     name: '食費',     icon: '🍚' },
+    { id: 'home',     name: '住居',     icon: '🏠' },
+    { id: 'utility',  name: '光熱',     icon: '💡' },
+    { id: 'transport',name: '交通',     icon: '🚃' },
+    { id: 'comm',     name: '通信',     icon: '📱' },
+    { id: 'health',   name: '医療',     icon: '🏥' },
+    { id: 'leisure',  name: '娯楽',     icon: '🎬' },
+    { id: 'shopping', name: '買物',     icon: '🛍️' },
+    { id: 'edu',      name: '教育',     icon: '📚' },
+    { id: 'beauty',   name: '美容',     icon: '✂️' },
+    { id: 'social',   name: '交際',     icon: '🍶' },
+    { id: 'other_e',  name: 'その他',   icon: '・' },
+  ],
+  income: [
+    { id: 'salary',   name: '給与',     icon: '💼' },
+    { id: 'bonus',    name: '賞与',     icon: '🎁' },
+    { id: 'side',     name: '副業',     icon: '💻' },
+    { id: 'invest',   name: '投資',     icon: '📈' },
+    { id: 'other_i',  name: 'その他',   icon: '・' },
+  ]
+};
+const ALL_CATS = [...CATEGORIES.expense, ...CATEGORIES.income];
+function catById(id) { return ALL_CATS.find(c => c.id === id) || { name: '不明', icon: '・' }; }
+
+const GOAL_ICONS = ['🎯','✈️','🏠','🚗','💍','🎓','👶','🌸','🏖️','💰','🧧','🛡️','🔥','📈','🎁','⭐'];
+
+const ACCOUNT_LABELS = {
+  nisa_tsumitate: 'NISA つみたて',
+  nisa_growth:    'NISA 成長',
+  ideco:          'iDeCo',
+  taxable:        '特定口座',
+  other:          'その他'
+};
+
+let state = {
+  transactions: [],
+  holdings: [],
+  goals: [],
+  netWorthHistory: [],
+  settings: {
+    incomeGoal: 0, savingsGoal: 30, cashBaseline: 0,
+    swr: 4, fireAnnualExpense: 0,
+    sim: { initial: 0, monthly: 50000, rate: 5, years: 20 }
+  },
+  currentMonth: new Date(),
+  modalTxType: 'expense',
+  selectedCat: null,
+  editingHoldingId: null,
+  editingGoalId: null,
+  selectedGoalIcon: '🎯',
+};
+
+async function tryGet(key) {
+  try {
+    const r = await window.storage.get(key);
+    return r && r.value ? JSON.parse(r.value) : null;
+  } catch (e) { return null; }
+}
+async function loadAll() {
+  state.transactions = (await tryGet('transactions')) || [];
+  state.holdings = (await tryGet('holdings')) || [];
+  state.goals = (await tryGet('goals')) || [];
+  state.netWorthHistory = (await tryGet('netWorthHistory')) || [];
+  const s = await tryGet('settings');
+  if (s) state.settings = { ...state.settings, ...s, sim: { ...state.settings.sim, ...(s.sim || {}) } };
+
+  if (!state.goals.some(g => g.isFire)) {
+    state.goals.unshift({
+      id: 'fire', isFire: true, name: 'FIRE資産', icon: '🔥',
+      target: 0, current: 0, monthlyContribution: 0, deadline: null
+    });
+  }
+
+  // 月次スナップショット: 当月のレコードがなければ追加/更新
+  await recordMonthlySnapshot();
+}
+
+async function recordMonthlySnapshot() {
+  const now = new Date();
+  const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const cash = totalCashFromTx();
+  const invest = totalInvestValue();
+  const total = cash + invest;
+  const existing = state.netWorthHistory.find(s => s.month === ym);
+  if (existing) {
+    existing.cash = cash;
+    existing.invest = invest;
+    existing.total = total;
+    existing.updatedAt = now.toISOString();
+  } else {
+    state.netWorthHistory.push({
+      month: ym, cash, invest, total,
+      updatedAt: now.toISOString()
+    });
+  }
+  // 24ヶ月以上は古いものから削除
+  state.netWorthHistory.sort((a,b) => a.month.localeCompare(b.month));
+  if (state.netWorthHistory.length > 24) {
+    state.netWorthHistory = state.netWorthHistory.slice(-24);
+  }
+  await save('netWorthHistory', state.netWorthHistory);
+}
+async function save(key, data) {
+  try { await window.storage.set(key, JSON.stringify(data)); }
+  catch (e) { showToast('保存に失敗しました'); }
+}
+
+const yen = n => '¥' + Math.round(n).toLocaleString('ja-JP');
+const yenNum = n => Math.round(n).toLocaleString('ja-JP');
+function monthKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+function fmtMonth(d) { return `${d.getFullYear()}年 ${d.getMonth()+1}月`; }
+function txMonthKey(tx) { return tx.date.slice(0, 7); }
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+function getMonthTx(d) { return state.transactions.filter(t => txMonthKey(t) === monthKey(d)); }
+function summarize(txs) {
+  let income = 0, expense = 0;
+  const byCat = {};
+  for (const t of txs) {
+    if (t.type === 'income') income += t.amount;
+    else { expense += t.amount; byCat[t.category] = (byCat[t.category] || 0) + t.amount; }
+  }
+  return { income, expense, balance: income - expense, byCat };
+}
+function totalCashFromTx() {
+  let total = state.settings.cashBaseline || 0;
+  for (const t of state.transactions) total += t.type === 'income' ? t.amount : -t.amount;
+  return total;
+}
+function holdingValue(h) { return (h.qty || 0) * (h.currentPrice || 0); }
+function holdingCost(h) { return (h.qty || 0) * (h.costPrice || 0); }
+function totalInvestValue() { return state.holdings.reduce((s,h) => s + holdingValue(h), 0); }
+function totalInvestCost() { return state.holdings.reduce((s,h) => s + holdingCost(h), 0); }
+function annualExpenseFromTx() {
+  const now = new Date();
+  const cutoff = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  return state.transactions
+    .filter(t => t.type === 'expense' && new Date(t.date) >= cutoff)
+    .reduce((s,t) => s + t.amount, 0);
+}
+
+function renderNetWorth() {
+  const cash = totalCashFromTx();
+  const invest = totalInvestValue();
+  document.getElementById('netWorth').textContent = yenNum(cash + invest);
+  document.getElementById('cashTotal').textContent = yen(cash);
+  document.getElementById('investTotal').textContent = yen(invest);
+
+  // 当月スナップショットを更新(リアルタイム反映)
+  updateCurrentMonthSnapshot(cash, invest);
+}
+
+function updateCurrentMonthSnapshot(cash, invest) {
+  const now = new Date();
+  const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const existing = state.netWorthHistory.find(s => s.month === ym);
+  if (existing) {
+    existing.cash = cash; existing.invest = invest;
+    existing.total = cash + invest;
+    existing.updatedAt = now.toISOString();
+  } else {
+    state.netWorthHistory.push({ month: ym, cash, invest, total: cash + invest, updatedAt: now.toISOString() });
+    state.netWorthHistory.sort((a,b) => a.month.localeCompare(b.month));
+  }
+  // 永続化(awaitなし、軽量)
+  save('netWorthHistory', state.netWorthHistory);
+}
+
+function renderNetWorthChart() {
+  const container = document.getElementById('nwChartContainer');
+  const history = [...state.netWorthHistory].slice(-12);
+
+  if (history.length < 2) {
+    container.innerHTML = '<div class="nw-chart-empty">月をまたいで使用すると<br>推移グラフが表示されます</div>';
+    document.getElementById('nwChartChange').textContent = '';
+    document.getElementById('nwChartRange').textContent = '';
+    return;
+  }
+
+  const first = history[0].total;
+  const last = history[history.length - 1].total;
+  const change = last - first;
+  const changePct = first !== 0 ? (change / Math.abs(first)) * 100 : 0;
+
+  const changeEl = document.getElementById('nwChartChange');
+  changeEl.textContent = (change >= 0 ? '+' : '') + yen(change) + ` (${change >= 0 ? '+' : ''}${changePct.toFixed(1)}%)`;
+  changeEl.className = 'nw-chart-change ' + (change >= 0 ? 'up' : 'down');
+
+  document.getElementById('nwChartRange').textContent = `${history.length}ヶ月`;
+  document.getElementById('nwChartTitle').textContent = `${history[0].month.replace('-','/')} 〜 ${history[history.length-1].month.replace('-','/')}`;
+
+  // SVG描画
+  const W = 320, H = 140;
+  const padL = 8, padR = 8, padT = 12, padB = 22;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+
+  const values = history.map(h => h.total);
+  const min = Math.min(...values, 0);
+  const max = Math.max(...values, 1);
+  const range = max - min || 1;
+
+  const xStep = history.length > 1 ? innerW / (history.length - 1) : innerW;
+  const points = history.map((h, i) => ({
+    x: padL + i * xStep,
+    y: padT + innerH - ((h.total - min) / range) * innerH,
+    month: h.month,
+    total: h.total
+  }));
+
+  const linePath = points.map((p, i) => (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' ');
+  const areaPath = linePath + ` L ${points[points.length-1].x.toFixed(1)},${(padT + innerH).toFixed(1)} L ${points[0].x.toFixed(1)},${(padT + innerH).toFixed(1)} Z`;
+
+  // X軸ラベル(最初・中間・最後)
+  const labelIndices = history.length <= 4
+    ? history.map((_, i) => i)
+    : [0, Math.floor(history.length / 2), history.length - 1];
+
+  const grid = [0.25, 0.5, 0.75].map(p => {
+    const y = padT + innerH * p;
+    return `<line class="grid-line" x1="${padL}" y1="${y}" x2="${padL + innerW}" y2="${y}"/>`;
+  }).join('');
+
+  const labels = labelIndices.map(i => {
+    const p = points[i];
+    const m = parseInt(history[i].month.split('-')[1]);
+    return `<text class="label" x="${p.x}" y="${H - 6}" text-anchor="middle">${m}月</text>`;
+  }).join('');
+
+  const dotsCount = history.length;
+  const showDot = (i) => dotsCount <= 6 || i === 0 || i === dotsCount - 1;
+  const dots = points.map((p, i) => showDot(i)
+    ? `<circle class="point" cx="${p.x}" cy="${p.y}" r="3"/>` : '').join('');
+
+  container.innerHTML = `
+    <svg class="nw-chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="nwGradient" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="rgba(176,141,60,0.25)"/>
+          <stop offset="100%" stop-color="rgba(176,141,60,0)"/>
+        </linearGradient>
+      </defs>
+      ${grid}
+      <path class="area" d="${areaPath}"/>
+      <path class="line" d="${linePath}"/>
+      ${dots}
+      ${labels}
+    </svg>
+  `;
+}
+
+function getPrevMonth(d) {
+  return new Date(d.getFullYear(), d.getMonth() - 1, 1);
+}
+
+// 増減のフォーマット: 値・パーセント・矢印・意味色を返す
+function formatDelta(current, previous, betterWhenIncreases) {
+  if (previous === 0 && current === 0) {
+    return { sign: 'neutral', arrow: '—', text: '変化なし' };
+  }
+  if (previous === 0) {
+    return { sign: 'neutral', arrow: '+', text: '新規' };
+  }
+  const diff = current - previous;
+  const pct = (diff / Math.abs(previous)) * 100;
+  let sign = 'neutral';
+  if (Math.abs(pct) < 0.5) {
+    sign = 'neutral';
+  } else if (diff > 0) {
+    sign = betterWhenIncreases ? 'good' : 'bad';
+  } else {
+    sign = betterWhenIncreases ? 'bad' : 'good';
+  }
+  const arrow = diff > 0 ? '▲' : (diff < 0 ? '▼' : '—');
+  const sign_str = diff >= 0 ? '+' : '';
+  return {
+    sign, arrow,
+    text: `${sign_str}${yenNum(diff)} (${sign_str}${pct.toFixed(1)}%)`
+  };
+}
+
+function renderMonthlyCompare(currentTxs, prevTxs, currentSummary, prevSummary) {
+  const container = document.getElementById('compareContent');
+  const vsEl = document.getElementById('compareVs');
+
+  const prevMonth = getPrevMonth(state.currentMonth);
+  vsEl.textContent = `vs ${prevMonth.getMonth() + 1}月`;
+
+  if (prevTxs.length === 0 && currentTxs.length === 0) {
+    container.innerHTML = '<div class="compare-empty">記録がありません</div>';
+    return;
+  }
+  if (prevTxs.length === 0) {
+    container.innerHTML = '<div class="compare-empty">前月のデータがないため比較できません</div>';
+    return;
+  }
+
+  const currRate = currentSummary.income > 0 ? (currentSummary.balance / currentSummary.income) * 100 : 0;
+  const prevRate = prevSummary.income > 0 ? (prevSummary.balance / prevSummary.income) * 100 : 0;
+
+  const items = [
+    {
+      label: '収入',
+      value: yen(currentSummary.income),
+      delta: formatDelta(currentSummary.income, prevSummary.income, true)
+    },
+    {
+      label: '支出',
+      value: yen(currentSummary.expense),
+      delta: formatDelta(currentSummary.expense, prevSummary.expense, false)
+    },
+    {
+      label: '収支',
+      value: (currentSummary.balance >= 0 ? '+' : '') + yen(currentSummary.balance),
+      delta: formatDelta(currentSummary.balance, prevSummary.balance, true)
+    },
+    {
+      label: '貯蓄率',
+      value: Math.round(currRate) + '%',
+      delta: (() => {
+        const diff = currRate - prevRate;
+        let sign = 'neutral';
+        if (Math.abs(diff) < 0.5) sign = 'neutral';
+        else sign = diff > 0 ? 'good' : 'bad';
+        const arrow = diff > 0 ? '▲' : (diff < 0 ? '▼' : '—');
+        const sign_str = diff >= 0 ? '+' : '';
+        return { sign, arrow, text: `${sign_str}${diff.toFixed(1)}pt` };
+      })()
+    }
+  ];
+
+  container.innerHTML = `<div class="compare-grid">${
+    items.map(it => `
+      <div class="compare-item">
+        <div class="compare-item-label">${it.label}</div>
+        <div class="compare-item-value">${it.value}</div>
+        <div class="compare-item-delta ${it.delta.sign}">
+          <span class="arrow">${it.delta.arrow}</span>
+          <span>${it.delta.text}</span>
+        </div>
+      </div>
+    `).join('')
+  }</div>`;
+}
+
+function renderDashboard() {
+  document.getElementById('currentMonth').textContent = fmtMonth(state.currentMonth);
+  const txs = getMonthTx(state.currentMonth);
+  const prevTxs = getMonthTx(getPrevMonth(state.currentMonth));
+  const summary = summarize(txs);
+  const prevSummary = summarize(prevTxs);
+  const { income, expense, balance, byCat } = summary;
+
+  document.getElementById('balance').textContent = yenNum(balance);
+  document.getElementById('totalIncome').textContent = yen(income);
+  document.getElementById('totalExpense').textContent = yen(expense);
+
+  const card = document.querySelector('#view-dashboard .card.accent-line');
+  card.classList.remove('income-line', 'gold-line');
+  card.classList.add(balance > 0 ? 'income-line' : 'gold-line');
+
+  document.getElementById('balanceMeta').textContent = txs.length === 0 ? '記録なし' : `${txs.length}件の記録`;
+
+  // 月次比較
+  renderMonthlyCompare(txs, prevTxs, summary, prevSummary);
+
+  const rate = income > 0 ? Math.max(0, (balance / income) * 100) : 0;
+  const ratePct = Math.round(rate);
+  document.getElementById('savingsRate').textContent = ratePct + '%';
+  document.getElementById('savingsRateMini').textContent = ratePct + '%';
+  document.getElementById('savingsBarFill').style.width = Math.min(100, (rate / 50) * 100) + '%';
+  document.getElementById('savingsGoalLabel').textContent = `目標 ${state.settings.savingsGoal}%`;
+
+  const list = document.getElementById('categoryList');
+  const sorted = Object.entries(byCat).sort((a,b) => b[1] - a[1]);
+  if (sorted.length === 0) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">◌</div><div class="empty-text">支出の記録がありません</div></div>';
+  } else {
+    const prevByCat = prevSummary.byCat;
+    list.innerHTML = sorted.map(([catId, amt]) => {
+      const cat = catById(catId);
+      const pct = (amt / expense) * 100;
+      const prevAmt = prevByCat[catId] || 0;
+      let deltaHtml = '';
+      if (prevAmt === 0 && prevTxs.length > 0) {
+        deltaHtml = '<div class="cat-delta new">新規</div>';
+      } else if (prevAmt > 0) {
+        const diff = amt - prevAmt;
+        const pctDiff = (diff / prevAmt) * 100;
+        if (Math.abs(pctDiff) < 0.5) {
+          deltaHtml = '<div class="cat-delta neutral">前月比 ±0%</div>';
+        } else {
+          const sign = diff > 0 ? 'bad' : 'good';
+          const arrow = diff > 0 ? '▲' : '▼';
+          const signStr = diff >= 0 ? '+' : '';
+          deltaHtml = `<div class="cat-delta ${sign}">${arrow} ${signStr}${pctDiff.toFixed(0)}%</div>`;
+        }
+      }
+      return `<div class="list-row">
+          <div class="list-icon">${cat.icon}</div>
+          <div class="list-info">
+            <div class="list-title">${cat.name}</div>
+            <div class="list-bar-wrap"><div class="list-bar-fill" style="width:${pct}%"></div></div>
+          </div>
+          <div>
+            <div class="list-amount expense">${yen(amt)}</div>
+            <div class="list-pct">${pct.toFixed(1)}%</div>
+            ${deltaHtml}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  const recent = [...state.transactions].sort((a,b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)).slice(0, 5);
+  document.getElementById('recentTxSub').textContent = `${state.transactions.length}件`;
+  const recentList = document.getElementById('recentTxList');
+  if (recent.length === 0) {
+    recentList.innerHTML = '<div class="empty"><div class="empty-icon">◌</div><div class="empty-text">右下の + から追加</div></div>';
+  } else {
+    recentList.innerHTML = recent.map(t => {
+      const cat = catById(t.category);
+      return `<div class="list-row">
+          <div class="list-icon ${t.type}">${cat.icon}</div>
+          <div class="list-info">
+            <div class="list-title">${t.memo || cat.name}</div>
+            <div class="list-sub">${t.date.slice(5).replace('-','/')} · ${cat.name}</div>
+          </div>
+          <div class="list-amount ${t.type}">${t.type === 'income' ? '+' : '-'}${yen(t.amount)}</div>
+        </div>`;
+    }).join('');
+  }
+}
+
+function renderHistory() {
+  document.getElementById('currentMonthH').textContent = fmtMonth(state.currentMonth);
+  const txs = getMonthTx(state.currentMonth).sort((a,b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+  const list = document.getElementById('txList');
+
+  if (txs.length === 0) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">◌</div><div class="empty-text">記録がありません<br>右下の + から追加できます</div></div>';
+  } else {
+    const grouped = {};
+    for (const t of txs) {
+      if (!grouped[t.date]) grouped[t.date] = [];
+      grouped[t.date].push(t);
+    }
+    let html = '';
+    for (const date of Object.keys(grouped).sort().reverse()) {
+      const dayTxs = grouped[date];
+      const dayTotal = dayTxs.reduce((s,t) => s + (t.type === 'income' ? t.amount : -t.amount), 0);
+      const d = new Date(date);
+      const dayLabel = `${d.getMonth()+1}/${d.getDate()} ${'日月火水木金土'[d.getDay()]}`;
+      html += `<div class="tx-day"><span>${dayLabel}</span><span>${dayTotal >= 0 ? '+' : ''}${yenNum(dayTotal)}</span></div>`;
+      for (const t of dayTxs) {
+        const cat = catById(t.category);
+        html += `<div class="list-row">
+            <div class="list-icon ${t.type}">${cat.icon}</div>
+            <div class="list-info">
+              <div class="list-title">${t.memo || cat.name}</div>
+              <div class="list-sub">${cat.name}</div>
+            </div>
+            <div class="list-amount ${t.type}">${t.type === 'income' ? '+' : '-'}${yen(t.amount)}</div>
+            <div class="row-actions"><button class="icon-btn" data-tx-id="${t.id}" aria-label="削除">×</button></div>
+          </div>`;
+      }
+    }
+    list.innerHTML = html;
+    list.querySelectorAll('[data-tx-id]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('この記録を削除しますか?')) return;
+        state.transactions = state.transactions.filter(t => t.id !== btn.dataset.txId);
+        await save('transactions', state.transactions);
+        renderAll();
+      });
+    });
+  }
+
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i); d.setDate(1);
+    months.push(d);
+  }
+  const data = months.map(m => {
+    const t = state.transactions.filter(tx => txMonthKey(tx) === monthKey(m));
+    return { month: m, ...summarize(t) };
+  });
+  const max = Math.max(1, ...data.flatMap(d => [d.income, d.expense]));
+  const bars = document.getElementById('chartBars');
+  bars.innerHTML = data.map(d => `<div class="chart-col">
+      <div style="display:flex;gap:2px;width:100%;align-items:flex-end;height:110px">
+        <div class="chart-bar income" style="height:${(d.income/max)*100}%"></div>
+        <div class="chart-bar expense" style="height:${(d.expense/max)*100}%"></div>
+      </div>
+      <div class="chart-label">${d.month.getMonth()+1}月</div>
+    </div>`).join('');
+}
+
+function renderInvest() {
+  const value = totalInvestValue();
+  const cost = totalInvestCost();
+  const pnl = value - cost;
+  const pnlPct = cost > 0 ? (pnl / cost) * 100 : 0;
+
+  document.getElementById('investValue').textContent = yenNum(value);
+  document.getElementById('investCost').textContent = yen(cost);
+  const pnlEl = document.getElementById('investPnL');
+  pnlEl.textContent = (pnl >= 0 ? '+' : '') + yen(pnl);
+  pnlEl.style.color = pnl >= 0 ? 'var(--positive)' : 'var(--accent)';
+  const pnlPctEl = document.getElementById('investPnLPct');
+  pnlPctEl.textContent = (pnl >= 0 ? '+' : '') + pnlPct.toFixed(1) + '%';
+  pnlPctEl.style.color = pnl >= 0 ? 'var(--positive)' : 'var(--accent)';
+  document.getElementById('investMeta').textContent = state.holdings.length === 0 ? '保有銘柄なし' : `${state.holdings.length}銘柄を保有`;
+
+  const nisaTsumitate = state.holdings.filter(h => h.account === 'nisa_tsumitate').reduce((s,h) => s + holdingCost(h), 0);
+  const nisaGrowth = state.holdings.filter(h => h.account === 'nisa_growth').reduce((s,h) => s + holdingCost(h), 0);
+  const nisaTotal = nisaTsumitate + nisaGrowth;
+  const TS = 1200000, GR = 2400000, TOT = 18000000;
+
+  document.getElementById('nisaTsumitateText').textContent = `${yen(nisaTsumitate)} / ${yen(TS)}`;
+  document.getElementById('nisaTsumitateBar').style.width = Math.min(100, (nisaTsumitate/TS)*100) + '%';
+  document.getElementById('nisaGrowthText').textContent = `${yen(nisaGrowth)} / ${yen(GR)}`;
+  document.getElementById('nisaGrowthBar').style.width = Math.min(100, (nisaGrowth/GR)*100) + '%';
+  document.getElementById('nisaTotalText').textContent = `${yen(nisaTotal)} / ${yen(TOT)}`;
+  document.getElementById('nisaTotalBar').style.width = Math.min(100, (nisaTotal/TOT)*100) + '%';
+
+  const list = document.getElementById('holdingsList');
+  if (state.holdings.length === 0) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">◌</div><div class="empty-text">「+ 追加」から銘柄を登録</div></div>';
+  } else {
+    list.innerHTML = state.holdings.map(h => {
+      const v = holdingValue(h), c = holdingCost(h);
+      const p = v - c, pPct = c > 0 ? (p/c)*100 : 0;
+      return `<div class="list-row" data-edit-h="${h.id}">
+          <div class="list-icon invest">📈</div>
+          <div class="list-info">
+            <div class="list-title">${h.name || '無名'}</div>
+            <div class="list-sub">${ACCOUNT_LABELS[h.account] || ''} · ${h.qty} × ¥${yenNum(h.currentPrice)}</div>
+          </div>
+          <div>
+            <div class="list-amount">${yen(v)}</div>
+            <div class="list-pct" style="color:${p >= 0 ? 'var(--positive)' : 'var(--accent)'}">${p >= 0 ? '+' : ''}${pPct.toFixed(1)}%</div>
+          </div>
+          <div class="row-actions"><button class="icon-btn" aria-label="編集">⋯</button></div>
+        </div>`;
+    }).join('');
+    list.querySelectorAll('[data-edit-h]').forEach(row => {
+      row.addEventListener('click', () => openHoldingModal(row.dataset.editH));
+    });
+  }
+}
+
+function renderGoals() {
+  const list = document.getElementById('goalsList');
+
+  if (state.goals.length === 0) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">◌</div><div class="empty-text">「+ 新規目標」から追加</div></div>';
+  } else {
+    list.innerHTML = state.goals.map(g => {
+      let target = g.target, current = g.current, metaText = '';
+      if (g.isFire) {
+        const annualExp = state.settings.fireAnnualExpense || annualExpenseFromTx();
+        target = annualExp > 0 ? annualExp * (100 / state.settings.swr) : 0;
+        current = totalInvestValue() + totalCashFromTx();
+        metaText = annualExp > 0
+          ? `年間支出 ${yen(annualExp)} × ${(100/state.settings.swr).toFixed(0)}倍`
+          : '年間支出を入力すると試算されます';
+      }
+      const pct = target > 0 ? Math.min(100, (current / target) * 100) : 0;
+      const remain = Math.max(0, target - current);
+      let monthsLeft = '';
+      if (g.monthlyContribution > 0 && remain > 0) {
+        const m = Math.ceil(remain / g.monthlyContribution);
+        const y = Math.floor(m / 12), mo = m % 12;
+        monthsLeft = y > 0 ? `${y}年${mo > 0 ? mo + 'ヶ月' : ''}` : `${m}ヶ月`;
+      }
+      let deadlineText = '';
+      if (g.deadline) {
+        const d = new Date(g.deadline), now = new Date();
+        const monthsToD = (d.getFullYear() - now.getFullYear()) * 12 + (d.getMonth() - now.getMonth());
+        if (monthsToD > 0 && remain > 0) {
+          const requiredMonthly = Math.ceil(remain / monthsToD);
+          deadlineText = `期限まで月¥${yenNum(requiredMonthly)}必要`;
+        }
+      }
+      return `<div class="goal-card ${g.isFire ? 'fire-goal' : ''}">
+          <div class="goal-header">
+            <div class="goal-name"><span class="icon">${g.icon || '🎯'}</span>${g.name}</div>
+            <div class="goal-pct">${pct.toFixed(0)}%</div>
+          </div>
+          <div class="goal-amounts">
+            <span class="goal-amount-now">¥${yenNum(current)}</span>
+            <span class="goal-target">/ ¥${yenNum(target)}</span>
+          </div>
+          <div class="goal-bar"><div class="goal-bar-fill" style="width:${pct}%"></div></div>
+          <div class="goal-meta">
+            ${metaText ? `<span>${metaText}</span>` : ''}
+            ${monthsLeft ? `<span>達成まで ${monthsLeft}</span>` : ''}
+            ${deadlineText ? `<span>${deadlineText}</span>` : ''}
+            ${remain > 0 ? `<span>残り ¥${yenNum(remain)}</span>` : '<span>達成 ✓</span>'}
+          </div>
+          <div class="goal-edit-row">
+            <button class="goal-edit-btn" data-edit-g="${g.id}">${g.isFire ? '期日・月額を編集' : '編集'}</button>
+          </div>
+        </div>`;
+    }).join('');
+    list.querySelectorAll('[data-edit-g]').forEach(btn => {
+      btn.addEventListener('click', () => openGoalModal(btn.dataset.editG));
+    });
+  }
+
+  const annualExp = state.settings.fireAnnualExpense || annualExpenseFromTx();
+  const fireTarget = annualExp > 0 ? annualExp * (100 / state.settings.swr) : 0;
+  const fireCurrent = totalInvestValue() + totalCashFromTx();
+  const firePct = fireTarget > 0 ? Math.min(100, (fireCurrent / fireTarget) * 100) : 0;
+  document.getElementById('fireTarget').textContent = yenNum(fireTarget);
+  document.getElementById('fireProgressFill').style.width = firePct + '%';
+  let metaLines = [];
+  if (annualExp > 0) {
+    metaLines.push(`年間支出 ¥${yenNum(annualExp)} × ${(100/state.settings.swr).toFixed(0)}倍 = ¥${yenNum(fireTarget)}`);
+    metaLines.push(`現在 ¥${yenNum(fireCurrent)} / ${firePct.toFixed(1)}% 達成`);
+    if (state.settings.fireAnnualExpense === 0) metaLines.push('※ 過去12ヶ月の実績支出を使用');
+  } else {
+    metaLines.push('家計簿に支出を入力するか、年間支出を設定してください');
+  }
+  document.getElementById('fireMeta').innerHTML = metaLines.join('<br>');
+}
+
+function renderSettings() {
+  document.getElementById('incomeGoal').value = state.settings.incomeGoal || '';
+  document.getElementById('savingsGoal').value = state.settings.savingsGoal;
+  document.getElementById('cashBaseline').value = state.settings.cashBaseline || '';
+  document.getElementById('swrInput').value = state.settings.swr;
+  document.getElementById('fireAnnualExpense').value = state.settings.fireAnnualExpense || '';
+
+  // シミュレーター入力の復元
+  document.getElementById('simInitial').value = state.settings.sim.initial || '';
+  document.getElementById('simMonthly').value = state.settings.sim.monthly || '';
+  document.getElementById('simRate').value = state.settings.sim.rate;
+  document.getElementById('simYears').value = state.settings.sim.years;
+}
+
+// 複利計算: 月複利、月初積立
+function compoundCalc(initial, monthly, annualRatePct, years) {
+  const months = years * 12;
+  const r = (annualRatePct / 100) / 12; // 月利
+  const yearly = []; // 年ごと: { year, principal, total }
+
+  let balance = initial;
+  let principal = initial;
+
+  yearly.push({ year: 0, principal, total: balance });
+
+  for (let m = 1; m <= months; m++) {
+    balance = balance * (1 + r) + monthly;
+    principal += monthly;
+    if (m % 12 === 0) {
+      yearly.push({ year: m / 12, principal, total: balance });
+    }
+  }
+  return { final: balance, principal, gain: balance - principal, yearly };
+}
+
+function renderSimulator() {
+  const initial = parseFloat(document.getElementById('simInitial').value) || 0;
+  const monthly = parseFloat(document.getElementById('simMonthly').value) || 0;
+  const rate = parseFloat(document.getElementById('simRate').value) || 0;
+  const years = parseInt(document.getElementById('simYears').value) || 0;
+
+  if (years <= 0 || (initial === 0 && monthly === 0)) {
+    document.getElementById('simFinal').textContent = '0';
+    document.getElementById('simPrincipal').textContent = '¥0';
+    document.getElementById('simGain').textContent = '¥0';
+    document.getElementById('simChart').innerHTML = '';
+    document.getElementById('simFireLink').style.display = 'none';
+    return;
+  }
+
+  const result = compoundCalc(initial, monthly, rate, years);
+
+  document.getElementById('simFinal').textContent = yenNum(result.final);
+  document.getElementById('simPrincipal').textContent = yen(result.principal);
+  document.getElementById('simGain').textContent = '+' + yen(result.gain);
+
+  // チャート描画
+  renderSimChart(result.yearly);
+
+  // FIRE目標との連携
+  renderSimFireLink(initial, monthly, rate);
+}
+
+function renderSimChart(yearly) {
+  const W = 320, H = 120;
+  const padL = 8, padR = 8, padT = 8, padB = 18;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+
+  const max = Math.max(...yearly.map(y => y.total), 1);
+  const xStep = yearly.length > 1 ? innerW / (yearly.length - 1) : innerW;
+
+  const totalPoints = yearly.map((y, i) => ({
+    x: padL + i * xStep,
+    y: padT + innerH - (y.total / max) * innerH
+  }));
+  const principalPoints = yearly.map((y, i) => ({
+    x: padL + i * xStep,
+    y: padT + innerH - (y.principal / max) * innerH
+  }));
+
+  const totalPath = totalPoints.map((p, i) => (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' ');
+  const principalArea = principalPoints.map((p, i) => (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' ')
+    + ` L ${principalPoints[principalPoints.length-1].x.toFixed(1)},${(padT + innerH).toFixed(1)}`
+    + ` L ${principalPoints[0].x.toFixed(1)},${(padT + innerH).toFixed(1)} Z`;
+
+  // 年ラベル
+  const lastIdx = yearly.length - 1;
+  const labelIndices = yearly.length <= 5
+    ? yearly.map((_, i) => i).filter(i => i > 0)
+    : [Math.floor(lastIdx / 4), Math.floor(lastIdx / 2), Math.floor(lastIdx * 3 / 4), lastIdx];
+
+  const labels = labelIndices.map(i => {
+    const p = totalPoints[i];
+    return `<text class="label" x="${p.x}" y="${H - 4}" text-anchor="middle">${yearly[i].year}年</text>`;
+  }).join('');
+
+  document.getElementById('simChart').innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+      <path class="principal" d="${principalArea}"/>
+      <path class="total-line" d="${totalPath}"/>
+      ${labels}
+    </svg>
+  `;
+}
+
+function renderSimFireLink(initial, monthly, rate) {
+  const linkEl = document.getElementById('simFireLink');
+  const annualExp = state.settings.fireAnnualExpense || annualExpenseFromTx();
+
+  if (annualExp <= 0 || monthly <= 0) {
+    linkEl.style.display = 'none';
+    return;
+  }
+
+  const fireTarget = annualExp * (100 / state.settings.swr);
+  const currentAssets = totalInvestValue() + totalCashFromTx();
+
+  // 現在資産から開始して、何年で目標に到達するかをシミュレート
+  const r = (rate / 100) / 12;
+  let balance = currentAssets;
+  let months = 0;
+  const maxMonths = 600; // 50年上限
+
+  while (balance < fireTarget && months < maxMonths) {
+    balance = balance * (1 + r) + monthly;
+    months++;
+  }
+
+  if (months >= maxMonths) {
+    linkEl.innerHTML = `現在のペース(月¥${yenNum(monthly)}・年${rate}%)では<br>50年以内のFIRE達成は難しい計算です。利回りや積立額の見直しを。`;
+    linkEl.style.display = 'block';
+    return;
+  }
+
+  const years = Math.floor(months / 12);
+  const remMonths = months % 12;
+  const yearsText = years > 0 ? `${years}年${remMonths > 0 ? remMonths + 'ヶ月' : ''}` : `${months}ヶ月`;
+
+  linkEl.innerHTML = `現在の資産 ¥${yenNum(currentAssets)} から<br>月¥${yenNum(monthly)}・年${rate}%で運用すると<br><b>${yearsText}でFIRE目標 ¥${yenNum(fireTarget)} に到達</b>`;
+  linkEl.style.display = 'block';
+}
+
+function renderAll() {
+  renderNetWorth(); renderDashboard(); renderHistory(); renderInvest(); renderGoals();
+  renderNetWorthChart();
+  renderSimulator();
+}
+
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-' + btn.dataset.view).classList.add('active');
+    const fab = document.getElementById('fab');
+    if (['dashboard','history'].includes(btn.dataset.view)) fab.classList.remove('hidden');
+    else fab.classList.add('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+});
+
+function changeMonth(delta) {
+  state.currentMonth = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() + delta, 1);
+  renderDashboard(); renderHistory();
+}
+document.getElementById('prevMonth').onclick = () => changeMonth(-1);
+document.getElementById('nextMonth').onclick = () => changeMonth(1);
+document.getElementById('prevMonthH').onclick = () => changeMonth(-1);
+document.getElementById('nextMonthH').onclick = () => changeMonth(1);
+
+// 取引モーダル
+const txModal = document.getElementById('txModal');
+function openTxModal() {
+  state.modalTxType = 'expense';
+  state.selectedCat = null;
+  document.querySelectorAll('#txModal .type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === 'expense'));
+  document.getElementById('amountInput').value = '';
+  document.getElementById('memoInput').value = '';
+  document.getElementById('dateInput').value = new Date().toISOString().slice(0,10);
+  renderCatGrid();
+  txModal.classList.add('active');
+}
+function closeTxModal() { txModal.classList.remove('active'); }
+document.getElementById('fab').addEventListener('click', openTxModal);
+txModal.addEventListener('click', e => { if (e.target === txModal) closeTxModal(); });
+
+document.querySelectorAll('#txModal .type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.modalTxType = btn.dataset.type;
+    state.selectedCat = null;
+    document.querySelectorAll('#txModal .type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderCatGrid();
+  });
+});
+function renderCatGrid() {
+  const grid = document.getElementById('catGrid');
+  const cats = CATEGORIES[state.modalTxType];
+  grid.innerHTML = cats.map(c => `<button class="cat-pick ${state.selectedCat === c.id ? 'selected' : ''}" data-id="${c.id}"><span class="icon">${c.icon}</span><span>${c.name}</span></button>`).join('');
+  grid.querySelectorAll('.cat-pick').forEach(b => {
+    b.addEventListener('click', () => { state.selectedCat = b.dataset.id; renderCatGrid(); });
+  });
+}
+document.getElementById('saveBtn').addEventListener('click', async () => {
+  const amount = parseFloat(document.getElementById('amountInput').value);
+  if (!amount || amount <= 0) { showToast('金額を入力してください'); return; }
+  if (!state.selectedCat) { showToast('カテゴリを選択してください'); return; }
+  const date = document.getElementById('dateInput').value;
+  if (!date) { showToast('日付を選択してください'); return; }
+  state.transactions.push({
+    id: genId(), type: state.modalTxType, amount: amount,
+    category: state.selectedCat, date: date,
+    memo: document.getElementById('memoInput').value.trim()
+  });
+  await save('transactions', state.transactions);
+  closeTxModal();
+  showToast('保存しました');
+  state.currentMonth = new Date(date);
+  renderAll();
+});
+
+// 銘柄モーダル
+const holdingModal = document.getElementById('holdingModal');
+function openHoldingModal(editId = null) {
+  state.editingHoldingId = editId;
+  document.getElementById('holdingModalTitle').textContent = editId ? '銘柄を編集' : '銘柄を追加';
+  const delBtn = document.getElementById('deleteHoldingBtn');
+  if (editId) {
+    const h = state.holdings.find(x => x.id === editId);
+    if (!h) return;
+    document.getElementById('holdingName').value = h.name;
+    document.getElementById('holdingAccount').value = h.account;
+    document.getElementById('holdingQty').value = h.qty;
+    document.getElementById('holdingCost').value = h.costPrice;
+    document.getElementById('holdingPrice').value = h.currentPrice;
+    delBtn.style.display = 'block';
+  } else {
+    document.getElementById('holdingName').value = '';
+    document.getElementById('holdingAccount').value = 'nisa_tsumitate';
+    document.getElementById('holdingQty').value = '';
+    document.getElementById('holdingCost').value = '';
+    document.getElementById('holdingPrice').value = '';
+    delBtn.style.display = 'none';
+  }
+  holdingModal.classList.add('active');
+}
+function closeHoldingModal() { holdingModal.classList.remove('active'); }
+document.getElementById('addHoldingBtn').addEventListener('click', () => openHoldingModal());
+holdingModal.addEventListener('click', e => { if (e.target === holdingModal) closeHoldingModal(); });
+
+document.getElementById('saveHoldingBtn').addEventListener('click', async () => {
+  const name = document.getElementById('holdingName').value.trim();
+  const qty = parseFloat(document.getElementById('holdingQty').value);
+  const costPrice = parseFloat(document.getElementById('holdingCost').value);
+  const currentPrice = parseFloat(document.getElementById('holdingPrice').value);
+  if (!name) { showToast('銘柄名を入力してください'); return; }
+  if (!qty || qty <= 0) { showToast('保有数量を入力してください'); return; }
+  if (isNaN(costPrice) || costPrice < 0) { showToast('取得単価を入力してください'); return; }
+  if (isNaN(currentPrice) || currentPrice < 0) { showToast('現在単価を入力してください'); return; }
+
+  if (state.editingHoldingId) {
+    const h = state.holdings.find(x => x.id === state.editingHoldingId);
+    if (h) {
+      h.name = name; h.account = document.getElementById('holdingAccount').value;
+      h.qty = qty; h.costPrice = costPrice; h.currentPrice = currentPrice;
+    }
+  } else {
+    state.holdings.push({
+      id: genId(), name: name,
+      account: document.getElementById('holdingAccount').value,
+      qty: qty, costPrice: costPrice, currentPrice: currentPrice
+    });
+  }
+  await save('holdings', state.holdings);
+  closeHoldingModal();
+  showToast('保存しました');
+  renderAll();
+});
+document.getElementById('deleteHoldingBtn').addEventListener('click', async () => {
+  if (!state.editingHoldingId) return;
+  if (!confirm('この銘柄を削除しますか?')) return;
+  state.holdings = state.holdings.filter(h => h.id !== state.editingHoldingId);
+  await save('holdings', state.holdings);
+  closeHoldingModal();
+  showToast('削除しました');
+  renderAll();
+});
+
+// 目標モーダル
+const goalModal = document.getElementById('goalModal');
+function renderGoalIconGrid() {
+  const grid = document.getElementById('goalIconGrid');
+  grid.innerHTML = GOAL_ICONS.map(i => `<button class="cat-pick ${state.selectedGoalIcon === i ? 'selected' : ''}" data-icon="${i}"><span class="icon">${i}</span></button>`).join('');
+  grid.querySelectorAll('.cat-pick').forEach(b => {
+    b.addEventListener('click', () => { state.selectedGoalIcon = b.dataset.icon; renderGoalIconGrid(); });
+  });
+}
+function openGoalModal(editId = null) {
+  state.editingGoalId = editId;
+  const g = editId ? state.goals.find(x => x.id === editId) : null;
+  document.getElementById('goalModalTitle').textContent = g ? '目標を編集' : '目標を追加';
+  const isFire = g && g.isFire;
+
+  document.getElementById('goalName').value = g ? g.name : '';
+  document.getElementById('goalName').disabled = isFire;
+  document.getElementById('goalTarget').value = g && !isFire ? g.target : '';
+  document.getElementById('goalTarget').disabled = isFire;
+  document.getElementById('goalCurrent').value = g && !isFire ? g.current : '';
+  document.getElementById('goalCurrent').disabled = isFire;
+  document.getElementById('goalDeadline').value = g && g.deadline ? g.deadline : '';
+  document.getElementById('goalMonthly').value = g && g.monthlyContribution ? g.monthlyContribution : '';
+
+  state.selectedGoalIcon = g ? (g.icon || '🎯') : '🎯';
+  renderGoalIconGrid();
+
+  // FIRE目標時はアイコン選択も使わないが見せておく
+  document.getElementById('deleteGoalBtn').style.display = (g && !isFire) ? 'block' : 'none';
+
+  goalModal.classList.add('active');
+}
+function closeGoalModal() { goalModal.classList.remove('active'); }
+document.getElementById('addGoalBtn').addEventListener('click', () => openGoalModal());
+goalModal.addEventListener('click', e => { if (e.target === goalModal) closeGoalModal(); });
+
+document.getElementById('saveGoalBtn').addEventListener('click', async () => {
+  const editing = state.editingGoalId ? state.goals.find(g => g.id === state.editingGoalId) : null;
+  const isFire = editing && editing.isFire;
+  const name = document.getElementById('goalName').value.trim();
+  const target = parseFloat(document.getElementById('goalTarget').value);
+  const current = parseFloat(document.getElementById('goalCurrent').value) || 0;
+  const deadline = document.getElementById('goalDeadline').value || null;
+  const monthly = parseFloat(document.getElementById('goalMonthly').value) || 0;
+
+  if (!isFire) {
+    if (!name) { showToast('目標名を入力してください'); return; }
+    if (!target || target <= 0) { showToast('目標金額を入力してください'); return; }
+  }
+
+  if (editing) {
+    if (!isFire) {
+      editing.name = name;
+      editing.icon = state.selectedGoalIcon;
+      editing.target = target;
+      editing.current = current;
+    }
+    editing.deadline = deadline;
+    editing.monthlyContribution = monthly;
+  } else {
+    state.goals.push({
+      id: genId(), name: name, icon: state.selectedGoalIcon,
+      target: target, current: current,
+      deadline: deadline, monthlyContribution: monthly
+    });
+  }
+  await save('goals', state.goals);
+  closeGoalModal();
+  showToast('保存しました');
+  renderAll();
+});
+document.getElementById('deleteGoalBtn').addEventListener('click', async () => {
+  if (!state.editingGoalId) return;
+  const g = state.goals.find(x => x.id === state.editingGoalId);
+  if (g && g.isFire) { showToast('FIRE目標は削除できません'); return; }
+  if (!confirm('この目標を削除しますか?')) return;
+  state.goals = state.goals.filter(x => x.id !== state.editingGoalId);
+  await save('goals', state.goals);
+  closeGoalModal();
+  showToast('削除しました');
+  renderAll();
+});
+
+// 設定
+document.getElementById('incomeGoal').addEventListener('change', async (e) => {
+  state.settings.incomeGoal = parseFloat(e.target.value) || 0;
+  await save('settings', state.settings);
+});
+document.getElementById('savingsGoal').addEventListener('change', async (e) => {
+  state.settings.savingsGoal = parseInt(e.target.value);
+  await save('settings', state.settings);
+  renderDashboard();
+});
+document.getElementById('cashBaseline').addEventListener('change', async (e) => {
+  state.settings.cashBaseline = parseFloat(e.target.value) || 0;
+  await save('settings', state.settings);
+  renderAll();
+});
+document.getElementById('swrInput').addEventListener('change', async (e) => {
+  state.settings.swr = parseFloat(e.target.value);
+  await save('settings', state.settings);
+  renderGoals();
+});
+document.getElementById('fireAnnualExpense').addEventListener('change', async (e) => {
+  state.settings.fireAnnualExpense = parseFloat(e.target.value) || 0;
+  await save('settings', state.settings);
+  renderGoals();
+  renderSimulator();
+});
+
+// 複利シミュレーター
+async function updateSimSetting() {
+  state.settings.sim = {
+    initial: parseFloat(document.getElementById('simInitial').value) || 0,
+    monthly: parseFloat(document.getElementById('simMonthly').value) || 0,
+    rate: parseFloat(document.getElementById('simRate').value) || 0,
+    years: parseInt(document.getElementById('simYears').value) || 0
+  };
+  await save('settings', state.settings);
+  renderSimulator();
+}
+['simInitial','simMonthly','simRate','simYears'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateSimSetting);
+});
+document.querySelectorAll('.sim-preset').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.sim-preset').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('simRate').value = btn.dataset.rate;
+    updateSimSetting();
+  });
+});
+document.getElementById('resetData').addEventListener('click', async () => {
+  if (!confirm('すべてのデータを削除しますか?この操作は取り消せません。')) return;
+  if (!confirm('本当によろしいですか?家計簿・投資・目標すべて消えます。')) return;
+  try {
+    await window.storage.delete('transactions');
+    await window.storage.delete('holdings');
+    await window.storage.delete('goals');
+    await window.storage.delete('netWorthHistory');
+    await window.storage.delete('settings');
+  } catch (e) {}
+  state.transactions = []; state.holdings = []; state.goals = [];
+  state.netWorthHistory = [];
+  state.settings = {
+    incomeGoal: 0, savingsGoal: 30, cashBaseline: 0,
+    swr: 4, fireAnnualExpense: 0,
+    sim: { initial: 0, monthly: 50000, rate: 5, years: 20 }
+  };
+  state.goals.unshift({
+    id: 'fire', isFire: true, name: 'FIRE資産', icon: '🔥',
+    target: 0, current: 0, monthlyContribution: 0, deadline: null
+  });
+  renderAll(); renderSettings();
+  showToast('削除しました');
+});
+
+(async function init() {
+  await loadAll();
+  renderAll();
+  renderSettings();
+  document.getElementById('loadingScreen').classList.add('hidden');
+  setTimeout(() => document.getElementById('loadingScreen').remove(), 400);
+})();
+</script>
+
+</body>
+</html>
