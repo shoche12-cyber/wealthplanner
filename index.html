@@ -48,13 +48,13 @@ const NISA_LIMITS={tsumitate:1200000,growth:2400000,lifetime:18000000};
 const COLORS=["#007AFF","#34C759","#FF9500","#FF3B30","#AF52DE","#5AC8FA","#FF2D55","#FFCC00","#32ADE6","#FF6482"];
 
 const INIT_TX=[];
-const INIT_NISA={tsumitate:{used:0,holdings:[],history:[]},growth:{used:0,holdings:[],history:[]}};
+const INIT_NISA={tsumitate:{used:0,holdings:[],history:[]},growth:{used:0,holdings:[],history:[]},general:{holdings:[]}};
 
 const INIT_GOALS=[];
 
 function useMonthlyData(tx,n){n=n||7;return useMemo(()=>{const months=recentMonths(n);return months.map(mk=>{const mTx=tx.filter(t=>monthKey(t.date)===mk);return{month:monthLabel(mk),key:mk,income:mTx.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0),expense:mTx.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0)};});},[tx,n]);}
 function useAssetData(tx,n){n=n||7;return useMemo(()=>{var months=recentMonths(n);var net={};tx.forEach(t=>{var mk=monthKey(t.date);net[mk]=(net[mk]||0)+(t.type==="income"?t.amount:-t.amount);});var allMk=Object.keys(net).sort();var cur=allMk.reduce((s,mk)=>s+(net[mk]||0),0);var mwn=months.map(mk=>({mk:mk,n:net[mk]||0}));var res=[];for(var i=mwn.length-1;i>=0;i--){res.unshift({month:monthLabel(mwn[i].mk),asset:Math.max(0,cur)});if(i>0)cur-=mwn[i].n;}return res;},[tx,n]);}
-function useNisaData(nisa,n){n=n||7;return useMemo(()=>{const months=recentMonths(n);const lastMk=months[months.length-1];const curTE=nisa.tsumitate.holdings.reduce((s,hh)=>s+hh.eval,0);const curTC=nisa.tsumitate.used;const curGE=nisa.growth.holdings.reduce((s,hh)=>s+hh.eval,0);const curGC=nisa.growth.used;return months.map(mk=>{const isLast=mk===lastMk;const tH=isLast?null:(nisa.tsumitate.history||[]).find(h=>h.month===mk);const gH=isLast?null:(nisa.growth.history||[]).find(h=>h.month===mk);const tE=tH?tH.eval:curTE;const tC=tH?tH.cost:curTC;const gE=gH?gH.eval:curGE;const gC=gH?gH.cost:curGC;return{month:monthLabel(mk),tsumitate:tE,growth:gE,totalEval:tE+gE,cost:tC+gC};});},[nisa,n]);}
+function useNisaData(nisa,n){n=n||7;return useMemo(()=>{const months=recentMonths(n);const lastMk=months[months.length-1];const curTE=nisa.tsumitate.holdings.reduce((s,hh)=>s+hh.eval,0);const curTC=nisa.tsumitate.used;const curGE=nisa.growth.holdings.reduce((s,hh)=>s+hh.eval,0);const curGC=nisa.growth.used;return months.map(mk=>{const isLast=mk===lastMk;const tH=isLast?null:(nisa.tsumitate.history||[]).find(h=>h.month===mk);const gH=isLast?null:(nisa.growth.history||[]).find(h=>h.month===mk);const tE=tH?tH.eval:curTE;const tC=tH?tH.cost:curTC;const gE=gH?gH.eval:curGE;const gC=gH?gH.cost:curGC;var gnEval=(nisa.general?nisa.general.holdings:[]).reduce((s,hh)=>s+hh.eval,0);return{month:monthLabel(mk),tsumitate:tE,growth:gE,totalEval:tE+gE+gnEval,cost:tC+gC};});},[nisa,n]);}
 
 function LineChart(props){
   const series=props.series,labels=props.labels,height=props.height||130,showDots=props.showDots!==false,gradientFill=props.gradientFill!==false,onHover=props.onHover;
@@ -263,11 +263,14 @@ function NisaScreen(p){
   const[editTarget,setEditTarget]=useState(null);
   const[form,setForm]=useState({name:"",type:"tsumitate",cost:"",eval:"",monthly:"",note:""});
   const[hIdx,setHIdx]=useState(null);
-  const allH=[...nisa.tsumitate.holdings,...nisa.growth.holdings];
+  const allH=[...nisa.tsumitate.holdings,...nisa.growth.holdings,...((nisa.general&&nisa.general.holdings)||[])];
   const totalCost=allH.reduce(function(s,hh){return s+hh.cost;},0);
   const totalEval=allH.reduce(function(s,hh){return s+hh.eval;},0);
   const totalGain=totalEval-totalCost;
   const lifeUsed=nisa.tsumitate.used+nisa.growth.used;
+  const generalHoldings=(nisa.general&&nisa.general.holdings)||[];
+  const generalEval=generalHoldings.reduce(function(s,hh){return s+hh.eval;},0);
+  const generalCost=generalHoldings.reduce(function(s,hh){return s+hh.cost;},0);
   const nisaChart=useNisaData(nisa,7);
   const hi=hIdx!==null?hIdx:nisaChart.length-1;
   const hd=nisaChart[hi]||nisaChart[nisaChart.length-1];
@@ -280,14 +283,14 @@ function NisaScreen(p){
       var next=Object.assign({},prev);
       next.tsumitate=Object.assign({},next.tsumitate,{holdings:next.tsumitate.holdings.filter(function(x){return x.id!==editTarget;})});
       next.growth=Object.assign({},next.growth,{holdings:next.growth.holdings.filter(function(x){return x.id!==editTarget;})});
-      var key=item.type==="tsumitate"?"tsumitate":"growth";
+      if(next.general){next.general=Object.assign({},next.general,{holdings:next.general.holdings.filter(function(x){return x.id!==editTarget;})});}
+      var key=item.type==="tsumitate"?"tsumitate":item.type==="general"?"general":"growth";
       var newH=next[key].holdings.filter(function(x){return x.id!==item.id;}).concat([item]);
-      next[key]=Object.assign({},next[key],{holdings:newH,used:newH.reduce(function(s,x){return s+x.cost;},0)});
+      if(key==="general"){next[key]=Object.assign({},next[key],{holdings:newH});}else{next[key]=Object.assign({},next[key],{holdings:newH,used:newH.reduce(function(s,x){return s+x.cost;},0)});}
       var curM=recentMonths(1)[0];
       var tE=key==="tsumitate"?newH.reduce(function(s,x){return s+x.eval;},0):next.tsumitate.holdings.reduce(function(s,x){return s+x.eval;},0);
       var gE=key==="growth"?newH.reduce(function(s,x){return s+x.eval;},0):next.growth.holdings.reduce(function(s,x){return s+x.eval;},0);
-      next.tsumitate=Object.assign({},next.tsumitate,{history:(next.tsumitate.history||[]).map(function(e){return e.month===curM?Object.assign({},e,{eval:tE,cost:next.tsumitate.used}):e;})});
-      next.growth=Object.assign({},next.growth,{history:(next.growth.history||[]).map(function(e){return e.month===curM?Object.assign({},e,{eval:gE,cost:next.growth.used}):e;})});
+      if(key!=="general"){next.tsumitate=Object.assign({},next.tsumitate,{history:(next.tsumitate.history||[]).map(function(e){return e.month===curM?Object.assign({},e,{eval:tE,cost:next.tsumitate.used}):e;})});next.growth=Object.assign({},next.growth,{history:(next.growth.history||[]).map(function(e){return e.month===curM?Object.assign({},e,{eval:gE,cost:next.growth.used}):e;})});}
       var ok=key==="tsumitate"?"growth":"tsumitate";
       next[ok]=Object.assign({},next[ok],{used:next[ok].holdings.reduce(function(s,x){return s+x.cost;},0)});
       return next;
@@ -341,14 +344,15 @@ function NisaScreen(p){
       h("p",{style:{fontSize:11,color:"#FF9500",fontWeight:700,textAlign:"right",marginTop:6,marginBottom:16}},pct(nisa.growth.used,NISA_LIMITS.growth)+"% 使用"),
       h("div",{style:{display:"flex",flexDirection:"column",gap:10}},nisa.growth.holdings.map(function(hh){return h(HCard,{key:hh.id,h:hh});}))
     ),
+    h(Card,null,h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}},h("div",null,h("p",{style:{fontSize:15,fontWeight:800,color:"#AF52DE"}},"一般・特定口座"),h("p",{style:{fontSize:11,color:"#8E8E93",marginTop:2}},"NISA以外の株式・投信等")),h("div",{style:{textAlign:"right"}},h("p",{style:{fontSize:20,fontWeight:800}},"¥"+fmt(generalEval)),h("p",{style:{fontSize:11,color:generalEval-generalCost>=0?"#34C759":"#FF3B30",fontWeight:600}},(generalEval-generalCost>=0?"+":"")+fmt(generalEval-generalCost)+" 損益"))),generalHoldings.length>0?h("div",{style:{display:"flex",flexDirection:"column",gap:10}},generalHoldings.map(function(hh){return h(HCard,{key:hh.id,h:hh});})):h("p",{style:{fontSize:13,color:"#8E8E93",textAlign:"center",padding:"12px 0"}},"「銘柄を追加」から登録できます")),
     h(Btn,{onClick:openAdd,color:"#007AFF"},"+ 銘柄を追加"),
     showModal&&h(Modal,{title:editTarget?"銘柄を編集":"銘柄を追加",onClose:function(){setShowModal(false);}},
       h("div",{style:{display:"flex",flexDirection:"column",gap:14}},
         h(IField,{label:"銘柄名",value:form.name,onChange:function(e){setForm(function(f){return Object.assign({},f,{name:e.target.value});});},placeholder:"例：eMAXIS Slim 全世界株式"}),
-        h("div",null,h("p",{style:{fontSize:12,color:"#8E8E93",fontWeight:600,marginBottom:8}},"枠の種類"),h("div",{style:{display:"flex",gap:8}},[["tsumitate","つみたて投資枠","#007AFF"],["growth","成長投資枠","#FF9500"]].map(function(a){return h("button",{key:a[0],onClick:function(){setForm(function(f){return Object.assign({},f,{type:a[0]});});},style:{flex:1,padding:"11px 0",borderRadius:14,border:"none",cursor:"pointer",background:form.type===a[0]?a[2]:"#F2F2F7",color:form.type===a[0]?"white":"#8E8E93",fontWeight:600,fontSize:13,fontFamily:"inherit",transition:"all 0.2s"}},a[1]);}))),
+        h("div",null,h("p",{style:{fontSize:12,color:"#8E8E93",fontWeight:600,marginBottom:8}},"枠の種類"),h("div",{style:{display:"flex",gap:8}},[["tsumitate","つみたて","#007AFF"],["growth","成長","#FF9500"],["general","一般・特定","#AF52DE"]].map(function(a){return h("button",{key:a[0],onClick:function(){setForm(function(f){return Object.assign({},f,{type:a[0]});});},style:{flex:1,padding:"10px 4px",borderRadius:14,border:"none",cursor:"pointer",background:form.type===a[0]?a[2]:"#F2F2F7",color:form.type===a[0]?"white":"#8E8E93",fontWeight:600,fontSize:12,fontFamily:"inherit",transition:"all 0.2s"}},a[1]);}))),
         h(IField,{label:"取得金額（円）",type:"number",inputMode:"numeric",value:form.cost,onChange:function(e){setForm(function(f){return Object.assign({},f,{cost:e.target.value});});},placeholder:"500000"}),
         h(IField,{label:"現在の評価額（円）",type:"number",inputMode:"numeric",value:form.eval,onChange:function(e){setForm(function(f){return Object.assign({},f,{eval:e.target.value});});},placeholder:"548000"}),
-        h(IField,{label:"毎月の積立額（任意）",type:"number",inputMode:"numeric",value:form.monthly,onChange:function(e){setForm(function(f){return Object.assign({},f,{monthly:e.target.value});});},placeholder:"40000"}),
+        form.type!=="general"&&h(IField,{label:"毎月の積立額（任意）",type:"number",inputMode:"numeric",value:form.monthly,onChange:function(e){setForm(function(f){return Object.assign({},f,{monthly:e.target.value});});},placeholder:"40000"}),
         h(IField,{label:"メモ（任意）",value:form.note,onChange:function(e){setForm(function(f){return Object.assign({},f,{note:e.target.value});});},placeholder:"例：米国株ETF"}),
         h("div",{style:{display:"flex",gap:10,marginTop:8}},
           editTarget&&h(Btn,{secondary:true,onClick:function(){var hh=allH.find(function(x){return x.id===editTarget;});if(hh)handleDel(hh.id,hh.type);setShowModal(false);},style:{color:"#FF3B30"}},"削除"),
@@ -369,7 +373,9 @@ function GoalsScreen(p){
   const[simHover,setSimHover]=useState(null);
   const GOAL_ICONS=["🎯","🏠","🚗","✈️","💍","📚","🏂","⛺","🎮","🛡️","💰","🏋️"];
   const assets=useAssetData(p.transactions,7);
-  const netAsset=Math.max(0,(assets[assets.length-1]?assets[assets.length-1].asset:1847000)-400000);
+  const[liabilities,setLiabilities]=useState(0);
+  const curAsset=(assets[assets.length-1]?assets[assets.length-1].asset:0);
+  const netAsset=Math.max(0,curAsset-liabilities);
   function runSim(){var P=Number(sim.principal)||0,m=Number(sim.monthly)||0,r=Number(sim.rate)/100/12,n=Number(sim.years)*12;var pts=[],val=P;for(var i=0;i<=n;i++){if(i>0)val=val*(1+r)+m;if(i%12===0)pts.push({year:i/12,val:Math.round(val),invest:Math.round(P+m*i)});}setSimResult({points:pts,final:Math.round(val),totalInvest:P+m*n,gain:Math.round(val)-(P+m*n)});setSimHover(null);}
   function openAdd(){setGForm({name:"",target:"",current:"",deadline:"",icon:"🎯"});setEditGoal(null);setShowModal(true);}
   function openEdit(g){setGForm({name:g.name,target:String(g.target),current:String(g.current),deadline:g.deadline,icon:g.icon});setEditGoal(g.id);setShowModal(true);}
@@ -382,11 +388,11 @@ function GoalsScreen(p){
       h("p",{style:{fontSize:44,fontWeight:800,letterSpacing:-1.5,marginBottom:4}},"¥"+fmt(netAsset)),
       h("p",{style:{fontSize:13,opacity:0.6,fontWeight:500,marginBottom:20}},"資産から負債を差し引いた正味の資産額"),
       h("div",{style:{background:"rgba(255,255,255,0.12)",borderRadius:14,padding:"14px 16px",display:"flex",justifyContent:"space-between"}},
-        [{label:"総資産",val:"¥"+fmt(assets[assets.length-1]?assets[assets.length-1].asset:0)},{label:"負債",val:"-¥"+fmt(400000)},{label:"純資産",val:"¥"+fmt(netAsset)}]
+        [{label:"総資産",val:"¥"+fmt(curAsset)},{label:"負債",val:"-¥"+fmt(liabilities)},{label:"純資産",val:"¥"+fmt(netAsset)}]
         .map(function(item,i){return h("div",{key:i,style:{textAlign:i===2?"right":"left"}},h("p",{style:{fontSize:11,opacity:0.55,marginBottom:4}},item.label),h("p",{style:{fontSize:14,fontWeight:700}},item.val));})
       )
     ),
-    h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},h("p",{style:{fontSize:20,fontWeight:800,color:"#1C1C1E"}},"貯蓄目標"),h("button",{onClick:openAdd,style:{background:"#007AFF",color:"white",border:"none",borderRadius:99,padding:"8px 16px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},"+ 追加")),
+    h(Card,null,h("p",{style:{fontSize:13,fontWeight:700,color:"#8E8E93",letterSpacing:0.5,marginBottom:14}},"負債"),h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},h("div",null,h("p",{style:{fontSize:14,fontWeight:500,color:"#1C1C1E"}},"ローン・クレジット等"),h("p",{style:{fontSize:11,color:"#8E8E93",marginTop:2}},"現在の負債残高合計")),h("div",{style:{display:"flex",alignItems:"center",gap:6}},h("span",{style:{fontSize:18,color:"#8E8E93",fontWeight:300}},"¥"),h("input",{type:"number",inputMode:"numeric",value:liabilities||"",onChange:function(e){setLiabilities(Number(e.target.value)||0);},placeholder:"0",style:{width:130,padding:"10px 12px",borderRadius:12,border:"1.5px solid #E5E5EA",fontSize:18,fontWeight:700,color:"#1C1C1E",outline:"none",fontFamily:"inherit",textAlign:"right",WebkitAppearance:"none",appearance:"none"},onFocus:function(e){e.target.style.borderColor="#007AFF";},onBlur:function(e){e.target.style.borderColor="#E5E5EA";}}))),h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},h("p",{style:{fontSize:20,fontWeight:800,color:"#1C1C1E"}},"貯蓄目標"),h("button",{onClick:openAdd,style:{background:"#007AFF",color:"white",border:"none",borderRadius:99,padding:"8px 16px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}},"+ 追加")),
     goals.length>0&&h(Card,null,
       h(SecTitle,null,"目標達成状況（達成率 %）"),
       h(LineChart,{series:goals.map(function(g,i){var pp=Math.min(100,Math.round(g.current/Math.max(1,g.target)*100));return{label:g.name,color:COLORS[i%COLORS.length],data:[0,Math.round(pp*0.35),Math.round(pp*0.65),Math.round(pp*0.88),pp]};}),labels:["開始","1ヶ月","2ヶ月","3ヶ月","現在"],height:140,gradientFill:false,formatY:function(v){return v+"%";}}),
@@ -455,6 +461,7 @@ function GoalsScreen(p){
         )
       )
     )
+  )
   );
 }
 
