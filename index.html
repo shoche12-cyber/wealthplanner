@@ -30,6 +30,17 @@ const fmt=n=>Math.round(n).toLocaleString("ja-JP");
 const pct=(a,b)=>b===0?0:Math.min(100,Math.round(a/b*100));
 const sortByDate=arr=>[...arr].sort((a,b)=>b.date.localeCompare(a.date));
 const monthKey=d=>d.slice(0,7);
+
+// 直近N日の "YYYY-MM-DD" 配列（古い順）
+const recentDays=n=>{
+  const now=new Date();
+  return Array.from({length:n},(_,i)=>{
+    const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()-(n-1-i));
+    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  });
+};
+const dayLabel=d=>{const p=d.split("-");return Number(p[1])+"/"+Number(p[2]);};
+
 const monthLabel=k=>`${Number(k.slice(5,7))}月`;
 const recentMonths=n=>{
   const now=new Date();
@@ -54,7 +65,15 @@ const INIT_GOALS=[];
 
 function useMonthlyData(tx,n){n=n||7;return useMemo(()=>{const months=recentMonths(n);return months.map(mk=>{const mTx=tx.filter(t=>monthKey(t.date)===mk);return{month:monthLabel(mk),key:mk,income:mTx.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0),expense:mTx.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0)};});},[tx,n]);}
 function useAssetData(tx,n){n=n||7;return useMemo(()=>{var months=recentMonths(n);var net={};tx.forEach(t=>{var mk=monthKey(t.date);net[mk]=(net[mk]||0)+(t.type==="income"?t.amount:-t.amount);});var allMk=Object.keys(net).sort();var cur=allMk.reduce((s,mk)=>s+(net[mk]||0),0);var mwn=months.map(mk=>({mk:mk,n:net[mk]||0}));var res=[];for(var i=mwn.length-1;i>=0;i--){res.unshift({month:monthLabel(mwn[i].mk),asset:Math.max(0,cur)});if(i>0)cur-=mwn[i].n;}return res;},[tx,n]);}
-function useNisaData(nisa,n){n=n||7;return useMemo(()=>{const months=recentMonths(n);const lastMk=months[months.length-1];const curTE=nisa.tsumitate.holdings.reduce((s,hh)=>s+hh.eval,0);const curTC=nisa.tsumitate.used;const curGE=nisa.growth.holdings.reduce((s,hh)=>s+hh.eval,0);const curGC=nisa.growth.used;return months.map(mk=>{const isLast=mk===lastMk;const tH=isLast?null:(nisa.tsumitate.history||[]).find(h=>h.month===mk);const gH=isLast?null:(nisa.growth.history||[]).find(h=>h.month===mk);const tE=tH?tH.eval:curTE;const tC=tH?tH.cost:curTC;const gE=gH?gH.eval:curGE;const gC=gH?gH.cost:curGC;var gnEval=(nisa.general?nisa.general.holdings:[]).reduce((s,hh)=>s+hh.eval,0);return{month:monthLabel(mk),tsumitate:tE,growth:gE,totalEval:tE+gE+gnEval,cost:tC+gC};});},[nisa,n]);}
+
+// 日次：収支（直近30日）
+function useDailyMonthlyData(tx){return useMemo(()=>{const days=recentDays(30);return days.map(dk=>{const dTx=tx.filter(t=>t.date===dk);return{day:dayLabel(dk),key:dk,income:dTx.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0),expense:dTx.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0)};});},[tx]);}
+// 日次：純資産（直近30日）
+function useDailyAssetData(tx){return useMemo(()=>{const days=recentDays(30);const net={};tx.forEach(t=>{net[t.date]=(net[t.date]||0)+(t.type==="income"?t.amount:-t.amount);});const allDates=Object.keys(net).sort();let cur=allDates.reduce((s,d)=>s+(net[d]||0),0);const res=[];for(let i=days.length-1;i>=0;i--){res.unshift({day:dayLabel(days[i]),key:days[i],asset:Math.max(0,cur)});if(i>0)cur-=net[days[i]]||0;}return res;},[tx]);}
+// 日次：NISA（直近30日 - 銘柄のdate基準）
+function useDailyNisaData(nisa){return useMemo(()=>{const days=recentDays(30);const allH=[...nisa.tsumitate.holdings,...nisa.growth.holdings,...((nisa.general&&nisa.general.holdings)||[])];const curTE=nisa.tsumitate.holdings.reduce((s,h)=>s+h.eval,0);const curTC=nisa.tsumitate.used;const curGE=nisa.growth.holdings.reduce((s,h)=>s+h.eval,0);const curGC=nisa.growth.used;const curGn=(nisa.general?nisa.general.holdings:[]).reduce((s,h)=>s+h.eval,0);const earliest=allH.reduce((s,h)=>{const d=h.date||"9999-99-99";return d<s?d:s;},"9999-99-99");const hasData=allH.length>0;return days.map(dk=>{if(!hasData||dk<earliest){return{day:dayLabel(dk),key:dk,tsumitate:0,growth:0,totalEval:0,cost:0};}const isLast=dk===days[days.length-1];const tE=isLast?curTE:nisa.tsumitate.holdings.reduce((s,h)=>h.date&&h.date<=dk?s+h.eval:s,0);const tC=isLast?curTC:nisa.tsumitate.holdings.reduce((s,h)=>h.date&&h.date<=dk?s+h.cost:s,0);const gE=isLast?curGE:nisa.growth.holdings.reduce((s,h)=>h.date&&h.date<=dk?s+h.eval:s,0);const gC=isLast?curGC:nisa.growth.holdings.reduce((s,h)=>h.date&&h.date<=dk?s+h.cost:s,0);const gnE=isLast?curGn:(nisa.general?nisa.general.holdings:[]).reduce((s,h)=>h.date&&h.date<=dk?s+h.eval:s,0);return{day:dayLabel(dk),key:dk,tsumitate:tE,growth:gE,totalEval:tE+gE+gnE,cost:tC+gC};});},[nisa]);}
+
+function useNisaData(nisa,n){n=n||7;return useMemo(()=>{const months=recentMonths(n);const lastMk=months[months.length-1];const curTE=nisa.tsumitate.holdings.reduce((s,hh)=>s+hh.eval,0);const curTC=nisa.tsumitate.used;const curGE=nisa.growth.holdings.reduce((s,hh)=>s+hh.eval,0);const curGC=nisa.growth.used;const curGnEval=(nisa.general?nisa.general.holdings:[]).reduce((s,hh)=>s+hh.eval,0);const allHoldings=[...nisa.tsumitate.holdings,...nisa.growth.holdings,...((nisa.general&&nisa.general.holdings)||[])];const earliestMk=allHoldings.reduce((s,hh)=>{const d=hh.date?hh.date.slice(0,7):"9999-99";return d<s?d:s;},"9999-99");const tHist=nisa.tsumitate.history||[];const gHist=nisa.growth.history||[];const earliestHistMk=[...tHist,...gHist].reduce((s,e)=>e.month<s?e.month:s,"9999-99");const startMk=Math.min?[earliestMk,earliestHistMk].filter(s=>s!=="9999-99").sort()[0]:earliestMk;const hasData=allHoldings.length>0||tHist.length>0||gHist.length>0;return months.map(mk=>{if(!hasData||mk<startMk){return{month:monthLabel(mk),tsumitate:0,growth:0,totalEval:0,cost:0};}const isLast=mk===lastMk;const tH=isLast?null:tHist.find(h=>h.month===mk);const gH=isLast?null:gHist.find(h=>h.month===mk);const tE=tH?tH.eval:curTE;const tC=tH?tH.cost:curTC;const gE=gH?gH.eval:curGE;const gC=gH?gH.cost:curGC;const gnEval=isLast?curGnEval:((nisa.general&&nisa.general.holdings)||[]).reduce((s,hh)=>{return hh.date&&hh.date.slice(0,7)<=mk?s+hh.eval:s;},0);return{month:monthLabel(mk),tsumitate:tE,growth:gE,totalEval:tE+gE+gnEval,cost:tC+gC};});},[nisa,n]);}
 
 function LineChart(props){
   const series=props.series,labels=props.labels,height=props.height||130,showDots=props.showDots!==false,gradientFill=props.gradientFill!==false,onHover=props.onHover;
@@ -94,10 +113,26 @@ function LineChart(props){
       series.map((s,si)=>h("path",{key:si,d:mkPath(s.data),fill:"none",stroke:s.color,strokeWidth:s.dashed?1.8:2.5,strokeDasharray:s.dashed?"5,4":undefined,strokeLinecap:"round",strokeLinejoin:"round"})),
       showDots&&series.map((s,si)=>s.data.map((v,i)=>h("circle",{key:si+"-"+i,cx:xP(i),cy:yP(v),r:ai===i?5.5:3,fill:ai===i?s.color:"white",stroke:s.color,strokeWidth:2}))),
       ai!==null&&h("line",{x1:xP(ai),y1:PT,x2:xP(ai),y2:PT+iH,stroke:"#C7C7CC",strokeWidth:"1",strokeDasharray:"3,3"}),
-      labels.map((l,i)=>h("text",{key:i,x:xP(i),y:H-3,textAnchor:"middle",fontSize:9,fill:ai===i?"#007AFF":"#AEAEB2",fontWeight:ai===i?700:400,fontFamily:"-apple-system,sans-serif"},l))
+      labels.map((l,i)=>{const skip=labels.length>15&&i%5!==0&&ai!==i;return skip?null:h("text",{key:i,x:xP(i),y:H-3,textAnchor:"middle",fontSize:9,fill:ai===i?"#007AFF":"#AEAEB2",fontWeight:ai===i?700:400,fontFamily:"-apple-system,sans-serif"},l);})
     )
   );
 }
+
+
+// 期間切り替えトグル
+const PeriodToggle=function(p){
+  return h("div",{style:{display:"flex",background:"#F2F2F7",borderRadius:99,padding:3,gap:2,marginBottom:14,alignSelf:"flex-start"}},
+    [["month","1ヶ月"],["7months","7ヶ月"]].map(function(a){
+      return h("button",{key:a[0],onClick:function(){p.onChange(a[0]);},
+        style:{padding:"5px 14px",borderRadius:99,border:"none",cursor:"pointer",
+          background:p.value===a[0]?"white":"transparent",
+          color:p.value===a[0]?"#007AFF":"#8E8E93",
+          fontWeight:p.value===a[0]?700:500,fontSize:12,fontFamily:"inherit",
+          boxShadow:p.value===a[0]?"0 1px 6px rgba(0,0,0,0.12)":"none",
+          transition:"all 0.2s"}},a[1]);
+    })
+  );
+};
 
 const Card=function(p){return h("div",{onClick:p.onClick,style:Object.assign({background:"rgba(255,255,255,0.97)",borderRadius:22,padding:"18px 20px",boxShadow:"0 2px 20px rgba(0,0,0,0.07)"},p.style||{})},p.children);};
 const PBar=function(p){return h("div",{style:{background:"#F2F2F7",borderRadius:99,height:p.height||8,overflow:"hidden"}},h("div",{style:{height:"100%",width:Math.max(0,Math.min(100,p.value||0))+"%",background:p.color||"#007AFF",borderRadius:99,transition:"width 0.7s ease"}}));};
@@ -161,25 +196,35 @@ function TransactionList(p){
 function HomeScreen(p){
   const[hIdx,setHIdx]=useState(null);
   const[selCat,setSelCat]=useState(null);
+  const[period,setPeriod]=useState("month");
   const monthly=useMonthlyData(p.transactions,7);
   const assets=useAssetData(p.transactions,7);
+  const dailyMonthly=useDailyMonthlyData(p.transactions);
+  const dailyAssets=useDailyAssetData(p.transactions);
+  const chartAssets=period==="month"?dailyAssets:assets;
+  const chartMonthly=period==="month"?dailyMonthly:monthly;
+  const assetLabels=period==="month"?dailyAssets.map(function(d){return d.day;}):assets.map(function(d){return d.month;});
+  const assetData2=period==="month"?dailyAssets.map(function(d){return d.asset;}):assets.map(function(d){return d.asset;});
+  const incLabels=period==="month"?dailyMonthly.map(function(d){return d.day;}):monthly.map(function(d){return d.month;});
+  const incData=period==="month"?dailyMonthly.map(function(d){return d.income;}):monthly.map(function(d){return d.income;});
+  const expData=period==="month"?dailyMonthly.map(function(d){return d.expense;}):monthly.map(function(d){return d.expense;});
   const curMK=recentMonths(1)[0];
   const thisMo=p.transactions.filter(function(t){return monthKey(t.date)===curMK;});
   const income=thisMo.filter(function(t){return t.type==="income";}).reduce(function(s,t){return s+t.amount;},0);
   const expense=thisMo.filter(function(t){return t.type==="expense";}).reduce(function(s,t){return s+t.amount;},0);
-  const nisaEval=[...p.nisa.tsumitate.holdings,...p.nisa.growth.holdings].reduce(function(s,hh){return s+hh.eval;},0);
+  const nisaEval=[...p.nisa.tsumitate.holdings,...p.nisa.growth.holdings,...((p.nisa.general&&p.nisa.general.holdings)||[])].reduce(function(s,hh){return s+hh.eval;},0);
   const totalAsset=(assets[assets.length-1]?assets[assets.length-1].asset:1234000)+nisaEval;
   const assetDiff=(assets[assets.length-1]?assets[assets.length-1].asset:0)-(assets[assets.length-2]?assets[assets.length-2].asset:0);
   const expByCat={};
   thisMo.filter(function(t){return t.type==="expense";}).forEach(function(t){expByCat[t.category]=(expByCat[t.category]||0)+t.amount;});
   const sorted=Object.entries(expByCat).sort(function(a,b){return b[1]-a[1];});
   const totalExp=sorted.reduce(function(s,a){return s+a[1];},0);
-  const hi=hIdx!==null?hIdx:monthly.length-1;
-  const hd=monthly[hi]||monthly[monthly.length-1];
-  const ha=assets[hi]||assets[assets.length-1];
+  const hi=hIdx!==null?hIdx:chartAssets.length-1;
+  const hd=chartMonthly[hi]||chartMonthly[chartMonthly.length-1]||{income:0,expense:0};
+  const ha=chartAssets[hi]||chartAssets[chartAssets.length-1]||{asset:0,month:"",day:""};
   return h("div",{style:{display:"flex",flexDirection:"column",gap:16}},
     h("div",{style:{background:"linear-gradient(135deg,#0A0A0A,#1C1C1E,#2C2C2E)",borderRadius:28,padding:"28px 24px",boxShadow:"0 12px 40px rgba(0,0,0,0.25)",color:"white"}},
-      h("p",{style:{fontSize:12,opacity:0.5,letterSpacing:1.5,fontWeight:600,marginBottom:6}},"NET WORTH"),
+      h("p",{style:{fontSize:12,opacity:0.5,letterSpacing:1.5,fontWeight:600,marginBottom:6}},"総資産"),
       h("p",{style:{fontSize:44,fontWeight:800,letterSpacing:-1.5,marginBottom:4}},"¥"+fmt(totalAsset)),
       h("p",{style:{fontSize:13,color:assetDiff>=0?"#34C759":"#FF6B6B",fontWeight:600,marginBottom:22}},(assetDiff>=0?"↑":"↓")+" 先月比 "+(assetDiff>=0?"+":"")+fmt(assetDiff)),
       h("div",{style:{display:"flex",gap:0,overflow:"hidden"}},
@@ -188,12 +233,15 @@ function HomeScreen(p){
       )
     ),
     h(Card,null,
-      h(SecTitle,null,"純資産の推移"),
-      h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:12}},
-        h("div",null,h("p",{style:{fontSize:26,fontWeight:800,color:"#007AFF"}},"¥"+fmt(ha.asset)),h("p",{style:{fontSize:11,color:"#8E8E93"}},ha.month+"末時点")),
-        h("div",{style:{textAlign:"right"}},h("p",{style:{fontSize:13,color:"#34C759",fontWeight:600}},"+¥"+fmt((assets[assets.length-1]?assets[assets.length-1].asset:0)-(assets[0]?assets[0].asset:0))),h("p",{style:{fontSize:11,color:"#8E8E93"}},(assets[0]?assets[0].month:"")+"比"))
+      h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:0}},
+        h(SecTitle,null,"純資産の推移"),
+        h(PeriodToggle,{value:period,onChange:setPeriod})
       ),
-      h(LineChart,{series:[{label:"純資産",color:"#007AFF",data:assets.map(function(d){return d.asset;})}],labels:assets.map(function(d){return d.month;}),height:130,onHover:setHIdx}),
+      h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:12}},
+        h("div",null,h("p",{style:{fontSize:26,fontWeight:800,color:"#007AFF"}},"¥"+fmt(ha.asset)),h("p",{style:{fontSize:11,color:"#8E8E93"}},(ha.day||ha.month)+"時点")),
+        h("div",{style:{textAlign:"right"}},h("p",{style:{fontSize:13,color:"#34C759",fontWeight:600}},"+¥"+fmt((chartAssets[chartAssets.length-1]?chartAssets[chartAssets.length-1].asset:0)-(chartAssets[0]?chartAssets[0].asset:0))),h("p",{style:{fontSize:11,color:"#8E8E93"}},period==="month"?"30日間":"7ヶ月間"))
+      ),
+      h(LineChart,{series:[{label:"純資産",color:"#007AFF",data:assetData2}],labels:assetLabels,height:130,onHover:setHIdx,showDots:period!=="month"}),
       h(Legend,{items:[["#007AFF","純資産"]]})
     ),
     h(Card,null,
@@ -203,7 +251,7 @@ function HomeScreen(p){
         h("div",null,h("p",{style:{fontSize:11,color:"#FF9500",fontWeight:600,marginBottom:2}},"支出"),h("p",{style:{fontSize:20,fontWeight:800}},"¥"+fmt(hd.expense))),
         h("div",null,h("p",{style:{fontSize:11,color:"#007AFF",fontWeight:600,marginBottom:2}},"収支"),h("p",{style:{fontSize:20,fontWeight:800,color:"#007AFF"}},"¥"+fmt(hd.income-hd.expense)))
       ),
-      h(LineChart,{series:[{label:"収入",color:"#34C759",data:monthly.map(function(d){return d.income;})},{label:"支出",color:"#FF9500",data:monthly.map(function(d){return d.expense;}),dashed:true}],labels:monthly.map(function(d){return d.month;}),height:130,gradientFill:false,onHover:setHIdx}),
+      h(LineChart,{series:[{label:"収入",color:"#34C759",data:incData},{label:"支出",color:"#FF9500",data:expData,dashed:true}],labels:incLabels,height:130,gradientFill:false,onHover:setHIdx,showDots:period!=="month"}),
       h(Legend,{items:[["#34C759","収入"],["#FF9500","支出",true]]})
     ),
     h(Card,null,
@@ -263,6 +311,7 @@ function NisaScreen(p){
   const[editTarget,setEditTarget]=useState(null);
   const[form,setForm]=useState({name:"",type:"tsumitate",cost:"",eval:"",monthly:"",note:""});
   const[hIdx,setHIdx]=useState(null);
+  const[nisaPeriod,setNisaPeriod]=useState("month");
   const allH=[...nisa.tsumitate.holdings,...nisa.growth.holdings,...((nisa.general&&nisa.general.holdings)||[])];
   const totalCost=allH.reduce(function(s,hh){return s+hh.cost;},0);
   const totalEval=allH.reduce(function(s,hh){return s+hh.eval;},0);
@@ -272,27 +321,67 @@ function NisaScreen(p){
   const generalEval=generalHoldings.reduce(function(s,hh){return s+hh.eval;},0);
   const generalCost=generalHoldings.reduce(function(s,hh){return s+hh.cost;},0);
   const nisaChart=useNisaData(nisa,7);
-  const hi=hIdx!==null?hIdx:nisaChart.length-1;
-  const hd=nisaChart[hi]||nisaChart[nisaChart.length-1];
-  function openAdd(){setForm({name:"",type:"tsumitate",cost:"",eval:"",monthly:"",note:""});setEditTarget(null);setShowModal(true);}
-  function openEdit(hh){setForm({name:hh.name,type:hh.type,cost:String(hh.cost),eval:String(hh.eval),monthly:String(hh.monthly||""),note:hh.note||""});setEditTarget(hh.id);setShowModal(true);}
+  const dailyNisaChart=useDailyNisaData(nisa);
+  const activeNisaChart=nisaPeriod==="month"?dailyNisaChart:nisaChart;
+  const nisaLabels=nisaPeriod==="month"?dailyNisaChart.map(function(d){return d.day;}):nisaChart.map(function(d){return d.month;});
+  const hi=hIdx!==null?hIdx:activeNisaChart.length-1;
+  const hd=activeNisaChart[hi]||activeNisaChart[activeNisaChart.length-1]||{tsumitate:0,growth:0,totalEval:0,cost:0};
+  function openAdd(){var today=new Date().toISOString().slice(0,10);setForm({name:"",type:"tsumitate",cost:"",eval:"",monthly:"",note:"",date:today});setEditTarget(null);setShowModal(true);}
+  function openEdit(hh){var today=new Date().toISOString().slice(0,10);setForm({name:hh.name,type:hh.type,cost:String(hh.cost),eval:String(hh.eval),monthly:String(hh.monthly||""),note:hh.note||"",date:hh.date||today});setEditTarget(hh.id);setShowModal(true);}
   function handleSave(){
     if(!form.name||!form.cost||!form.eval)return;
-    var item={id:editTarget||Date.now(),name:form.name,type:form.type,cost:Number(form.cost),eval:Number(form.eval),monthly:Number(form.monthly)||0,note:form.note};
+    var recDate=form.date||new Date().toISOString().slice(0,10);
+    var recMk=recDate.slice(0,7);
+    var newCost=Number(form.cost),newEval=Number(form.eval);
+    var item={id:editTarget||Date.now(),name:form.name,type:form.type,cost:newCost,eval:newEval,monthly:Number(form.monthly)||0,note:form.note,date:recDate};
     setNisa(function(prev){
       var next=Object.assign({},prev);
-      next.tsumitate=Object.assign({},next.tsumitate,{holdings:next.tsumitate.holdings.filter(function(x){return x.id!==editTarget;})});
-      next.growth=Object.assign({},next.growth,{holdings:next.growth.holdings.filter(function(x){return x.id!==editTarget;})});
-      if(next.general){next.general=Object.assign({},next.general,{holdings:next.general.holdings.filter(function(x){return x.id!==editTarget;})});}
+      // 編集対象を全枠から削除
+      var prevItem=null;
+      ['tsumitate','growth','general'].forEach(function(k){
+        if(next[k]){
+          var found=next[k].holdings.find(function(x){return x.id===editTarget;});
+          if(found)prevItem=found;
+          next[k]=Object.assign({},next[k],{holdings:next[k].holdings.filter(function(x){return x.id!==editTarget;})});
+        }
+      });
       var key=item.type==="tsumitate"?"tsumitate":item.type==="general"?"general":"growth";
-      var newH=next[key].holdings.filter(function(x){return x.id!==item.id;}).concat([item]);
-      if(key==="general"){next[key]=Object.assign({},next[key],{holdings:newH});}else{next[key]=Object.assign({},next[key],{holdings:newH,used:newH.reduce(function(s,x){return s+x.cost;},0)});}
-      var curM=recentMonths(1)[0];
-      var tE=key==="tsumitate"?newH.reduce(function(s,x){return s+x.eval;},0):next.tsumitate.holdings.reduce(function(s,x){return s+x.eval;},0);
-      var gE=key==="growth"?newH.reduce(function(s,x){return s+x.eval;},0):next.growth.holdings.reduce(function(s,x){return s+x.eval;},0);
-      if(key!=="general"){next.tsumitate=Object.assign({},next.tsumitate,{history:(next.tsumitate.history||[]).map(function(e){return e.month===curM?Object.assign({},e,{eval:tE,cost:next.tsumitate.used}):e;})});next.growth=Object.assign({},next.growth,{history:(next.growth.history||[]).map(function(e){return e.month===curM?Object.assign({},e,{eval:gE,cost:next.growth.used}):e;})});}
-      var ok=key==="tsumitate"?"growth":"tsumitate";
-      next[ok]=Object.assign({},next[ok],{used:next[ok].holdings.reduce(function(s,x){return s+x.cost;},0)});
+      // 同名銘柄（新規追加時のみ）: 既存の同名銘柄に元本・評価額を加算
+      if(!editTarget){
+        var same=next[key].holdings.find(function(x){return x.name===item.name;});
+        if(same){
+          // 既存銘柄に加算してhistoryも更新
+          item=Object.assign({},same,{
+            id:same.id,
+            cost:same.cost+newCost,
+            eval:same.eval+newEval,
+            date:recDate
+          });
+          next[key]=Object.assign({},next[key],{holdings:next[key].holdings.filter(function(x){return x.id!==same.id;})});
+        }
+      }
+      var newH=next[key].holdings.concat([item]);
+      if(key==="general"){
+        next[key]=Object.assign({},next[key],{holdings:newH});
+      }else{
+        next[key]=Object.assign({},next[key],{holdings:newH,used:newH.reduce(function(s,x){return s+x.cost;},0)});
+      }
+      // 記録日の月のhistoryスナップショットを更新
+      var tE=next.tsumitate.holdings.reduce(function(s,x){return s+x.eval;},0);
+      var tC=next.tsumitate.used||next.tsumitate.holdings.reduce(function(s,x){return s+x.cost;},0);
+      var gE=next.growth.holdings.reduce(function(s,x){return s+x.eval;},0);
+      var gC=next.growth.used||next.growth.holdings.reduce(function(s,x){return s+x.cost;},0);
+      function upsertHistory(hist,mk,evalV,costV){
+        var arr=(hist||[]).slice();
+        var idx=arr.findIndex(function(e){return e.month===mk;});
+        if(idx>=0){arr[idx]=Object.assign({},arr[idx],{eval:evalV,cost:costV});}
+        else{arr.push({month:mk,eval:evalV,cost:costV});arr.sort(function(a,b){return a.month.localeCompare(b.month);});}
+        return arr;
+      }
+      if(key!=="general"){
+        next.tsumitate=Object.assign({},next.tsumitate,{history:upsertHistory(next.tsumitate.history,recMk,tE,tC)});
+        next.growth=Object.assign({},next.growth,{history:upsertHistory(next.growth.history,recMk,gE,gC)});
+      }
       return next;
     });
     setShowModal(false);
@@ -303,7 +392,7 @@ function NisaScreen(p){
   var containsGain=hd.totalEval-hd.cost;
   return h("div",{style:{display:"flex",flexDirection:"column",gap:16}},
     h("div",{style:{background:"linear-gradient(135deg,#0A2540,#1A3A6B)",borderRadius:28,padding:"26px 24px",color:"white",boxShadow:"0 10px 40px rgba(0,36,102,0.35)"}},
-      h("p",{style:{fontSize:12,opacity:0.5,letterSpacing:1.5,fontWeight:600,marginBottom:6}},"NISA 評価資産"),
+      h("p",{style:{fontSize:12,opacity:0.5,letterSpacing:1.5,fontWeight:600,marginBottom:6}},"投資資産合計（NISA＋一般・特定）"),
       h("p",{style:{fontSize:42,fontWeight:800,letterSpacing:-1.5,marginBottom:4}},"¥"+fmt(totalEval)),
       h("p",{style:{fontSize:14,color:totalGain>=0?"#34C759":"#FF6B6B",fontWeight:700,marginBottom:22}},(totalGain>=0?"+":"")+fmt(totalGain)+" ("+(totalCost>0?((totalGain/totalCost)*100).toFixed(2):"0.00")+"%)"),
       h("div",{style:{background:"rgba(255,255,255,0.08)",borderRadius:18,padding:"16px 18px"}},
@@ -324,12 +413,12 @@ function NisaScreen(p){
       )
     ),
     h(Card,null,
-      h(SecTitle,null,"NISA評価額の推移"),
+      h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:0}},h(SecTitle,null,"投資評価額の推移"),h(PeriodToggle,{value:nisaPeriod,onChange:setNisaPeriod})),
       h("div",{style:{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}},
         [{label:"つみたて",val:hd.tsumitate,color:"#007AFF"},{label:"成長",val:hd.growth,color:"#FF9500"},{label:"評価合計",val:hd.totalEval,color:"#34C759"},{label:"元本",val:hd.cost,color:"#8E8E93"},{label:"含み益",val:containsGain,color:containsGain>=0?"#34C759":"#FF3B30"}]
         .map(function(item){return h("div",{key:item.label,style:{minWidth:76}},h("p",{style:{fontSize:10,color:item.color,fontWeight:700,marginBottom:2}},item.label),h("p",{style:{fontSize:14,fontWeight:800,color:item.label==="含み益"?item.color:"#1C1C1E"}},item.label==="含み益"?(item.val>=0?"+":"")+fmt(item.val):"¥"+fmt(item.val)));})
       ),
-      h(LineChart,{series:[{label:"評価合計",color:"#34C759",data:nisaChart.map(function(d){return d.totalEval;})},{label:"つみたて",color:"#007AFF",data:nisaChart.map(function(d){return d.tsumitate;})},{label:"成長",color:"#FF9500",data:nisaChart.map(function(d){return d.growth;}),dashed:true},{label:"元本合計",color:"#8E8E93",data:nisaChart.map(function(d){return d.cost;}),dashed:true}],labels:nisaChart.map(function(d){return d.month;}),height:160,gradientFill:false,onHover:setHIdx}),
+      h(LineChart,{series:[{label:"評価合計",color:"#34C759",data:activeNisaChart.map(function(d){return d.totalEval;})},{label:"つみたて",color:"#007AFF",data:activeNisaChart.map(function(d){return d.tsumitate;})},{label:"成長",color:"#FF9500",data:activeNisaChart.map(function(d){return d.growth;}),dashed:true},{label:"元本合計",color:"#8E8E93",data:activeNisaChart.map(function(d){return d.cost;}),dashed:true}],labels:nisaLabels,height:160,gradientFill:false,onHover:setHIdx,showDots:nisaPeriod!=="month"}),
       h(Legend,{items:[["#34C759","評価合計"],["#007AFF","つみたて投資枠"],["#FF9500","成長投資枠",true],["#8E8E93","元本合計",true]]})
     ),
     h(Card,null,
@@ -348,7 +437,7 @@ function NisaScreen(p){
     h(Btn,{onClick:openAdd,color:"#007AFF"},"+ 銘柄を追加"),
     showModal&&h(Modal,{title:editTarget?"銘柄を編集":"銘柄を追加",onClose:function(){setShowModal(false);}},
       h("div",{style:{display:"flex",flexDirection:"column",gap:14}},
-        h(IField,{label:"銘柄名",value:form.name,onChange:function(e){setForm(function(f){return Object.assign({},f,{name:e.target.value});});},placeholder:"例：eMAXIS Slim 全世界株式"}),
+        h(IField,{label:"銘柄名",value:form.name,onChange:function(e){setForm(function(f){return Object.assign({},f,{name:e.target.value});});},placeholder:"例：eMAXIS Slim 全世界株式"}),h(IField,{label:"記録日（グラフに反映される月）",type:"date",value:form.date||"",onChange:function(e){setForm(function(f){return Object.assign({},f,{date:e.target.value});});},style:{WebkitAppearance:"none",appearance:"none"}}),
         h("div",null,h("p",{style:{fontSize:12,color:"#8E8E93",fontWeight:600,marginBottom:8}},"枠の種類"),h("div",{style:{display:"flex",gap:8}},[["tsumitate","つみたて","#007AFF"],["growth","成長","#FF9500"],["general","一般・特定","#AF52DE"]].map(function(a){return h("button",{key:a[0],onClick:function(){setForm(function(f){return Object.assign({},f,{type:a[0]});});},style:{flex:1,padding:"10px 4px",borderRadius:14,border:"none",cursor:"pointer",background:form.type===a[0]?a[2]:"#F2F2F7",color:form.type===a[0]?"white":"#8E8E93",fontWeight:600,fontSize:12,fontFamily:"inherit",transition:"all 0.2s"}},a[1]);}))),
         h(IField,{label:"取得金額（円）",type:"number",inputMode:"numeric",value:form.cost,onChange:function(e){setForm(function(f){return Object.assign({},f,{cost:e.target.value});});},placeholder:"500000"}),
         h(IField,{label:"現在の評価額（円）",type:"number",inputMode:"numeric",value:form.eval,onChange:function(e){setForm(function(f){return Object.assign({},f,{eval:e.target.value});});},placeholder:"548000"}),
