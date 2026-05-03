@@ -47,52 +47,14 @@ const ICONS_MAP={給与:"💼",副収入:"💡",ボーナス:"🎉",その他収
 const NISA_LIMITS={tsumitate:1200000,growth:2400000,lifetime:18000000};
 const COLORS=["#007AFF","#34C759","#FF9500","#FF3B30","#AF52DE","#5AC8FA","#FF2D55","#FFCC00","#32ADE6","#FF6482"];
 
-const INIT_TX=[
-  {id:1,type:"income",category:"給与",amount:280000,date:"2026-05-25",memo:"5月分給与"},
-  {id:2,type:"expense",category:"家賃",amount:72000,date:"2026-05-01",memo:""},
-  {id:3,type:"expense",category:"食費",amount:12000,date:"2026-05-03",memo:"週次買い出し"},
-  {id:4,type:"expense",category:"スノボ・アウトドア",amount:18000,date:"2026-05-10",memo:"板のメンテ"},
-  {id:5,type:"expense",category:"交通",amount:9800,date:"2026-05-12",memo:""},
-  {id:6,type:"expense",category:"ゲーム",amount:7500,date:"2026-05-15",memo:"新作DLC"},
-  {id:7,type:"expense",category:"外食",amount:5400,date:"2026-05-18",memo:"友人と焼肉"},
-  {id:8,type:"expense",category:"通信費",amount:3300,date:"2026-05-20",memo:""},
-  {id:9,type:"income",category:"副収入",amount:15000,date:"2026-04-28",memo:"フリーランス"},
-  {id:10,type:"expense",category:"光熱費",amount:6200,date:"2026-04-05",memo:""},
-  {id:11,type:"income",category:"給与",amount:280000,date:"2026-04-25",memo:"4月分給与"},
-  {id:12,type:"expense",category:"家賃",amount:72000,date:"2026-04-01",memo:""},
-  {id:13,type:"expense",category:"食費",amount:14000,date:"2026-04-08",memo:""},
-  {id:14,type:"expense",category:"外食",amount:6200,date:"2026-04-14",memo:""},
-  {id:15,type:"income",category:"給与",amount:280000,date:"2026-03-25",memo:"3月分給与"},
-  {id:16,type:"income",category:"ボーナス",amount:300000,date:"2026-03-20",memo:"春ボーナス"},
-  {id:17,type:"expense",category:"家賃",amount:72000,date:"2026-03-01",memo:""},
-  {id:18,type:"expense",category:"スノボ・アウトドア",amount:35000,date:"2026-03-05",memo:"ニセコ遠征"},
-  {id:19,type:"income",category:"給与",amount:280000,date:"2026-02-25",memo:"2月分給与"},
-  {id:20,type:"expense",category:"家賃",amount:72000,date:"2026-02-01",memo:""},
-  {id:21,type:"expense",category:"食費",amount:11500,date:"2026-02-10",memo:""},
-  {id:22,type:"income",category:"給与",amount:280000,date:"2025-12-25",memo:"12月分給与"},
-  {id:23,type:"expense",category:"家賃",amount:72000,date:"2025-12-01",memo:""},
-  {id:24,type:"expense",category:"食費",amount:16000,date:"2025-12-18",memo:"年末"},
-  {id:25,type:"income",category:"給与",amount:270000,date:"2025-11-25",memo:"11月分給与"},
-  {id:26,type:"expense",category:"家賃",amount:72000,date:"2025-11-01",memo:""},
-  {id:27,type:"expense",category:"食費",amount:10000,date:"2025-11-10",memo:""},
-];
-const INIT_NISA={
-  tsumitate:{used:480000,
-    holdings:[{id:1,name:"eMAXIS Slim 全世界株式",type:"tsumitate",cost:480000,eval:512000,monthly:40000,note:""}],
-    history:[{month:"2025-11",eval:430000,cost:400000},{month:"2025-12",eval:452000,cost:440000},{month:"2026-01",eval:465000,cost:440000},{month:"2026-02",eval:478000,cost:440000},{month:"2026-03",eval:490000,cost:480000},{month:"2026-04",eval:503000,cost:480000},{month:"2026-05",eval:512000,cost:480000}]},
-  growth:{used:750000,
-    holdings:[{id:2,name:"VTI",type:"growth",cost:500000,eval:548000,monthly:0,note:"米国株ETF"},{id:3,name:"楽天・S&P500",type:"growth",cost:250000,eval:261000,monthly:0,note:""}],
-    history:[{month:"2025-11",eval:680000,cost:660000},{month:"2025-12",eval:710000,cost:660000},{month:"2026-01",eval:698000,cost:700000},{month:"2026-02",eval:730000,cost:700000},{month:"2026-03",eval:762000,cost:750000},{month:"2026-04",eval:788000,cost:750000},{month:"2026-05",eval:809000,cost:750000}]},
-};
-const INIT_GOALS=[
-  {id:1,name:"緊急予備資金",target:500000,current:320000,deadline:"2026-12-31",icon:"🛡️"},
-  {id:2,name:"スノボ遠征費用",target:150000,current:87000,deadline:"2026-11-01",icon:"🏂"},
-  {id:3,name:"キャンプ道具",target:80000,current:12000,deadline:"2026-08-01",icon:"⛺"},
-];
+const INIT_TX=[];
+const INIT_NISA={tsumitate:{used:0,holdings:[],history:[]},growth:{used:0,holdings:[],history:[]}};
+
+const INIT_GOALS=[];
 
 function useMonthlyData(tx,n){n=n||7;return useMemo(()=>{const months=recentMonths(n);return months.map(mk=>{const mTx=tx.filter(t=>monthKey(t.date)===mk);return{month:monthLabel(mk),key:mk,income:mTx.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0),expense:mTx.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0)};});},[tx,n]);}
-function useAssetData(tx,base,n){n=n||7;return useMemo(()=>{const months=recentMonths(n);const net={};tx.forEach(t=>{const mk=monthKey(t.date);net[mk]=(net[mk]||0)+(t.type==="income"?t.amount:-t.amount);});let asset=base;return months.map((mk,i)=>{if(i>0)asset+=net[mk]||0;return{month:monthLabel(mk),asset:Math.max(0,asset)};});},[tx,base,n]);}
-function useNisaData(nisa,n){n=n||7;return useMemo(()=>recentMonths(n).map(mk=>{const tH=(nisa.tsumitate.history||[]).find(h=>h.month===mk);const gH=(nisa.growth.history||[]).find(h=>h.month===mk);const tE=tH?tH.eval:nisa.tsumitate.holdings.reduce((s,hh)=>s+hh.eval,0);const tC=tH?tH.cost:nisa.tsumitate.used;const gE=gH?gH.eval:nisa.growth.holdings.reduce((s,hh)=>s+hh.eval,0);const gC=gH?gH.cost:nisa.growth.used;return{month:monthLabel(mk),tsumitate:tE,growth:gE,totalEval:tE+gE,cost:tC+gC};}),[nisa,n]);}
+function useAssetData(tx,n){n=n||7;return useMemo(()=>{var months=recentMonths(n);var net={};tx.forEach(t=>{var mk=monthKey(t.date);net[mk]=(net[mk]||0)+(t.type==="income"?t.amount:-t.amount);});var allMk=Object.keys(net).sort();var cur=allMk.reduce((s,mk)=>s+(net[mk]||0),0);var mwn=months.map(mk=>({mk:mk,n:net[mk]||0}));var res=[];for(var i=mwn.length-1;i>=0;i--){res.unshift({month:monthLabel(mwn[i].mk),asset:Math.max(0,cur)});if(i>0)cur-=mwn[i].n;}return res;},[tx,n]);}
+function useNisaData(nisa,n){n=n||7;return useMemo(()=>{const months=recentMonths(n);const lastMk=months[months.length-1];const curTE=nisa.tsumitate.holdings.reduce((s,hh)=>s+hh.eval,0);const curTC=nisa.tsumitate.used;const curGE=nisa.growth.holdings.reduce((s,hh)=>s+hh.eval,0);const curGC=nisa.growth.used;return months.map(mk=>{const isLast=mk===lastMk;const tH=isLast?null:(nisa.tsumitate.history||[]).find(h=>h.month===mk);const gH=isLast?null:(nisa.growth.history||[]).find(h=>h.month===mk);const tE=tH?tH.eval:curTE;const tC=tH?tH.cost:curTC;const gE=gH?gH.eval:curGE;const gC=gH?gH.cost:curGC;return{month:monthLabel(mk),tsumitate:tE,growth:gE,totalEval:tE+gE,cost:tC+gC};});},[nisa,n]);}
 
 function LineChart(props){
   const series=props.series,labels=props.labels,height=props.height||130,showDots=props.showDots!==false,gradientFill=props.gradientFill!==false,onHover=props.onHover;
@@ -200,7 +162,7 @@ function HomeScreen(p){
   const[hIdx,setHIdx]=useState(null);
   const[selCat,setSelCat]=useState(null);
   const monthly=useMonthlyData(p.transactions,7);
-  const assets=useAssetData(p.transactions,1520000,7);
+  const assets=useAssetData(p.transactions,7);
   const curMK=recentMonths(1)[0];
   const thisMo=p.transactions.filter(function(t){return monthKey(t.date)===curMK;});
   const income=thisMo.filter(function(t){return t.type==="income";}).reduce(function(s,t){return s+t.amount;},0);
@@ -406,7 +368,7 @@ function GoalsScreen(p){
   const[simResult,setSimResult]=useState(null);
   const[simHover,setSimHover]=useState(null);
   const GOAL_ICONS=["🎯","🏠","🚗","✈️","💍","📚","🏂","⛺","🎮","🛡️","💰","🏋️"];
-  const assets=useAssetData(p.transactions,1520000,7);
+  const assets=useAssetData(p.transactions,7);
   const netAsset=Math.max(0,(assets[assets.length-1]?assets[assets.length-1].asset:1847000)-400000);
   function runSim(){var P=Number(sim.principal)||0,m=Number(sim.monthly)||0,r=Number(sim.rate)/100/12,n=Number(sim.years)*12;var pts=[],val=P;for(var i=0;i<=n;i++){if(i>0)val=val*(1+r)+m;if(i%12===0)pts.push({year:i/12,val:Math.round(val),invest:Math.round(P+m*i)});}setSimResult({points:pts,final:Math.round(val),totalInvest:P+m*n,gain:Math.round(val)-(P+m*n)});setSimHover(null);}
   function openAdd(){setGForm({name:"",target:"",current:"",deadline:"",icon:"🎯"});setEditGoal(null);setShowModal(true);}
