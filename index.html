@@ -453,7 +453,10 @@ function NisaScreen(p){
 }
 
 function GoalsScreen(p){
-  const[goals,setGoals]=useState(INIT_GOALS);
+  const goals=p.goals;
+  const setGoals=p.setGoals;
+  const liabilities=p.liabilities;
+  const setLiabilities=p.setLiabilities;
   const[showModal,setShowModal]=useState(false);
   const[editGoal,setEditGoal]=useState(null);
   const[gForm,setGForm]=useState({name:"",target:"",current:"",deadline:"",icon:"🎯"});
@@ -462,9 +465,9 @@ function GoalsScreen(p){
   const[simHover,setSimHover]=useState(null);
   const GOAL_ICONS=["🎯","🏠","🚗","✈️","💍","📚","🏂","⛺","🎮","🛡️","💰","🏋️"];
   const assets=useAssetData(p.transactions,7);
-  const[liabilities,setLiabilities]=useState(0);
   const curAsset=(assets[assets.length-1]?assets[assets.length-1].asset:0);
   const netAsset=Math.max(0,curAsset-liabilities);
+
   function runSim(){var P=Number(sim.principal)||0,m=Number(sim.monthly)||0,r=Number(sim.rate)/100/12,n=Number(sim.years)*12;var pts=[],val=P;for(var i=0;i<=n;i++){if(i>0)val=val*(1+r)+m;if(i%12===0)pts.push({year:i/12,val:Math.round(val),invest:Math.round(P+m*i)});}setSimResult({points:pts,final:Math.round(val),totalInvest:P+m*n,gain:Math.round(val)-(P+m*n)});setSimHover(null);}
   function openAdd(){setGForm({name:"",target:"",current:"",deadline:"",icon:"🎯"});setEditGoal(null);setShowModal(true);}
   function openEdit(g){setGForm({name:g.name,target:String(g.target),current:String(g.current),deadline:g.deadline,icon:g.icon});setEditGoal(g.id);setShowModal(true);}
@@ -554,11 +557,22 @@ function GoalsScreen(p){
   );
 }
 
+// localStorage ユーティリティ
+function loadLS(key,fallback){try{var v=localStorage.getItem(key);return v?JSON.parse(v):fallback;}catch(e){return fallback;}}
+function saveLS(key,val){try{localStorage.setItem(key,JSON.stringify(val));}catch(e){}}
+
 function App(){
   const[tab,setTab]=useState("home");
-  const[tx,setTx]=useState(INIT_TX);
-  const[nisa,setNisa]=useState(INIT_NISA);
+  const[tx,setTx]=useState(function(){return loadLS("assetapp_tx",INIT_TX);});
+  const[nisa,setNisa]=useState(function(){return loadLS("assetapp_nisa",INIT_NISA);});
+  const[goals,setGoals]=useState(function(){return loadLS("assetapp_goals",INIT_GOALS);});
+  const[liabilities,setLiabilities]=useState(function(){return loadLS("assetapp_liabilities",0);});
   const ref=useRef(null);
+  // 変更時に自動保存
+  useEffect(function(){saveLS("assetapp_tx",tx);},[tx]);
+  useEffect(function(){saveLS("assetapp_nisa",nisa);},[nisa]);
+  useEffect(function(){saveLS("assetapp_goals",goals);},[goals]);
+  useEffect(function(){saveLS("assetapp_liabilities",liabilities);},[liabilities]);
   useEffect(function(){if(ref.current)ref.current.scrollTo({top:0,behavior:"smooth"});},[tab]);
   function addTx(t){setTx(function(prev){return[t].concat(prev);});}
   function editTx(u){setTx(function(prev){return prev.map(function(t){return t.id===u.id?u:t;});});}
@@ -572,7 +586,7 @@ function App(){
       tab==="home"  &&h(HomeScreen,{transactions:tx,nisa:nisa,onEdit:editTx,onDelete:delTx}),
       tab==="input" &&h(InputScreen,{onAdd:addTx}),
       tab==="nisa"  &&h(NisaScreen,{nisa:nisa,setNisa:setNisa}),
-      tab==="goals" &&h(GoalsScreen,{transactions:tx})
+      tab==="goals" &&h(GoalsScreen,{transactions:tx,goals:goals,setGoals:setGoals,liabilities:liabilities,setLiabilities:setLiabilities})
     ),
     h(BottomNav,{active:tab,setActive:setTab})
   );
